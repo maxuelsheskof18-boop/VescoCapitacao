@@ -1,0 +1,701 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Máquina de Leads Vesco</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: { sans: ['Inter', 'ui-sans-serif', 'system-ui', 'Segoe UI', 'sans-serif'] },
+          colors: {
+            vesco: { 50: '#eff6ff', 100: '#dbeafe', 500: '#2563eb', 600: '#1d4ed8', 700: '#1e40af', 900: '#0f1e46' },
+            zap: { 500: '#22c55e', 600: '#16a34a' }
+          }
+        }
+      }
+    };
+  </script>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <style>
+    .spin { animation: spin .8s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .toast-enter { animation: toastIn .2s ease-out; }
+    @keyframes toastIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+    .chave { width: 44px; height: 24px; border-radius: 999px; position: relative; transition: background .15s; flex-shrink: 0; }
+    .chave::after { content: ''; position: absolute; top: 3px; left: 3px; width: 18px; height: 18px; border-radius: 50%; background: #fff; box-shadow: 0 1px 2px rgb(0 0 0 / .2); transition: transform .15s; }
+    .chave[aria-checked="true"]::after { transform: translateX(20px); }
+    .chave-sm { width: 34px; height: 20px; }
+    .chave-sm::after { width: 14px; height: 14px; }
+    .chave-sm[aria-checked="true"]::after { transform: translateX(14px); }
+  </style>
+</head>
+<body class="bg-slate-50 font-sans text-slate-800 antialiased">
+
+  <!-- ============ CABEÇALHO ============ -->
+  <header class="bg-vesco-900 text-white">
+    <div class="mx-auto flex max-w-7xl items-center justify-between gap-3 px-4 py-4">
+      <div class="flex items-center gap-3">
+        <div class="flex h-9 w-9 items-center justify-center rounded-lg bg-vesco-500 font-bold">V</div>
+        <div>
+          <h1 class="text-lg font-semibold leading-tight">Máquina de Leads</h1>
+          <p class="text-xs text-blue-200">Vesco · Prospecção B2B · Grande São Paulo</p>
+        </div>
+      </div>
+      <div class="flex items-center gap-2">
+        <span id="badgeConexao" class="hidden rounded-full px-2.5 py-1 text-xs font-medium sm:inline-flex"></span>
+        <button id="btnConexao" type="button" class="flex items-center gap-2 rounded-lg border border-white/20 px-3 py-2 text-sm hover:bg-white/10">
+          <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M13.8 10.2a4 4 0 00-5.6 0l-4 4a4 4 0 005.6 5.6l1.1-1.1m-.7-4.9a4 4 0 005.6 0l4-4a4 4 0 00-5.6-5.6l-1.1 1.1"/></svg>
+          Conexão
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <main class="mx-auto max-w-7xl space-y-6 px-4 py-6">
+
+    <!-- ============ CONEXÃO COM O MOTOR ============ -->
+    <section id="painelConexao" class="hidden rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+      <h2 class="font-semibold">Conexão com o motor</h2>
+      <p class="mb-4 text-sm text-slate-500">O motor roda no Easypanel. Cole o endereço dele e o <code>API_TOKEN</code> configurado lá. Fica salvo só neste navegador.</p>
+      <form id="formConexao" class="grid gap-4 md:grid-cols-[1fr_1fr_auto] md:items-end">
+        <label class="block">
+          <span class="text-sm font-medium text-slate-700">Endereço do motor</span>
+          <input id="cfgUrl" type="url" required placeholder="https://leads-motor.seudominio.com.br" class="campo mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-vesco-500 focus:outline-none focus:ring-2 focus:ring-vesco-100" />
+        </label>
+        <label class="block">
+          <span class="text-sm font-medium text-slate-700">Token de acesso</span>
+          <input id="cfgToken" type="password" required autocomplete="off" class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-vesco-500 focus:outline-none focus:ring-2 focus:ring-vesco-100" />
+        </label>
+        <button type="submit" class="rounded-lg bg-vesco-500 px-5 py-2 text-sm font-medium text-white hover:bg-vesco-600">Conectar</button>
+      </form>
+    </section>
+
+    <!-- ============ PRIMEIRO ACESSO ============ -->
+    <section id="semConexao" class="hidden rounded-xl border border-dashed border-slate-300 bg-white px-5 py-14 text-center">
+      <p class="font-medium text-slate-700">Conecte a tela ao motor</p>
+      <p class="text-sm text-slate-500">Clique em <b>Conexão</b> no topo e informe o endereço e o token do motor no Easypanel.</p>
+    </section>
+
+    <div id="app" class="hidden space-y-6">
+
+      <!-- ============ CONTROLE DO ENVIO AUTOMÁTICO ============ -->
+      <section class="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+        <div class="flex flex-wrap items-center justify-between gap-4">
+          <div class="flex items-center gap-4">
+            <button id="chaveEnvio" type="button" role="switch" aria-checked="false" class="chave bg-slate-300" aria-label="Envio automático"></button>
+            <div>
+              <p class="font-semibold">Envio automático</p>
+              <p id="txtEnvio" class="text-sm text-slate-500">—</p>
+            </div>
+          </div>
+          <div id="avisosSimulado" class="flex flex-wrap gap-2"></div>
+        </div>
+        <div class="mt-5 grid gap-4 md:grid-cols-2">
+          <div>
+            <div class="mb-1 flex justify-between text-sm"><span class="font-medium text-slate-700">WhatsApp hoje</span><span id="txtZapHoje" class="text-slate-500">0 / 0 · fila 0</span></div>
+            <div class="h-2 rounded-full bg-slate-100"><div id="barraZap" class="h-2 rounded-full bg-zap-500 transition-all" style="width:0%"></div></div>
+          </div>
+          <div>
+            <div class="mb-1 flex justify-between text-sm"><span class="font-medium text-slate-700">E-mails hoje</span><span id="txtEmailHoje" class="text-slate-500">0 / 0 · fila 0</span></div>
+            <div class="h-2 rounded-full bg-slate-100"><div id="barraEmail" class="h-2 rounded-full bg-vesco-500 transition-all" style="width:0%"></div></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ============ INDICADORES ============ -->
+      <section class="grid grid-cols-2 gap-3 md:grid-cols-4">
+        <div class="rounded-xl border border-slate-200 bg-white p-4"><p class="text-xs font-medium uppercase tracking-wide text-slate-500">Leads no funil</p><p id="kpiLeads" class="mt-1 text-2xl font-semibold">0</p></div>
+        <div class="rounded-xl border border-slate-200 bg-white p-4"><p class="text-xs font-medium uppercase tracking-wide text-slate-500">Contatados</p><p id="kpiContatados" class="mt-1 text-2xl font-semibold text-vesco-500">0</p></div>
+        <div class="rounded-xl border border-slate-200 bg-white p-4"><p class="text-xs font-medium uppercase tracking-wide text-slate-500">Responderam</p><p id="kpiResponderam" class="mt-1 text-2xl font-semibold text-zap-600">0</p></div>
+        <div class="rounded-xl border border-slate-200 bg-white p-4"><p class="text-xs font-medium uppercase tracking-wide text-slate-500">Descadastrados</p><p id="kpiOptout" class="mt-1 text-2xl font-semibold text-slate-500">0</p></div>
+      </section>
+
+      <!-- ============ MOTOR DE BUSCA ============ -->
+      <section class="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+        <form id="formBusca" class="grid gap-4 md:grid-cols-[1fr_1fr_auto] md:items-end">
+          <label class="block">
+            <span class="text-sm font-medium text-slate-700">Nicho / Categoria</span>
+            <input id="inpNicho" type="text" required placeholder="Ex: Condomínio Residencial" class="mt-1 w-full rounded-lg border border-slate-300 px-4 py-3 focus:border-vesco-500 focus:outline-none focus:ring-2 focus:ring-vesco-100" />
+          </label>
+          <label class="block">
+            <span class="text-sm font-medium text-slate-700">Região</span>
+            <input id="inpRegiao" type="text" required placeholder="Ex: Vila Mariana, São Paulo" class="mt-1 w-full rounded-lg border border-slate-300 px-4 py-3 focus:border-vesco-500 focus:outline-none focus:ring-2 focus:ring-vesco-100" />
+          </label>
+          <button id="btnRastrear" type="submit" class="flex items-center justify-center gap-2 rounded-lg bg-vesco-500 px-8 py-3 text-base font-semibold text-white shadow-sm transition hover:bg-vesco-600 focus:outline-none focus:ring-4 focus:ring-vesco-100 disabled:cursor-wait disabled:opacity-70">
+            <svg class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path stroke-linecap="round" d="M20 20l-3.5-3.5"/></svg>
+            Rastrear Leads
+          </button>
+        </form>
+        <div class="mt-4 flex flex-wrap items-center gap-x-6 gap-y-2 text-sm">
+          <label class="flex items-center gap-2"><input id="chkAuto" type="checkbox" checked class="h-4 w-4 rounded border-slate-300 text-vesco-500" /> Enviar apresentação automaticamente</label>
+          <label class="flex items-center gap-2"><input id="chkAgenda" type="checkbox" checked class="h-4 w-4 rounded border-slate-300 text-vesco-500" /> Repetir na busca agendada</label>
+          <span class="flex flex-wrap items-center gap-2 text-xs">
+            <span class="text-slate-500">Atalhos:</span>
+            <button type="button" data-nicho="Condomínio Residencial" class="atalho rounded-full bg-slate-100 px-2.5 py-1 text-slate-600 hover:bg-vesco-50 hover:text-vesco-600">Condomínios</button>
+            <button type="button" data-nicho="Restaurante" class="atalho rounded-full bg-slate-100 px-2.5 py-1 text-slate-600 hover:bg-vesco-50 hover:text-vesco-600">Restaurantes</button>
+            <button type="button" data-nicho="Clínica Médica" class="atalho rounded-full bg-slate-100 px-2.5 py-1 text-slate-600 hover:bg-vesco-50 hover:text-vesco-600">Clínicas</button>
+            <button type="button" data-nicho="Escola Particular" class="atalho rounded-full bg-slate-100 px-2.5 py-1 text-slate-600 hover:bg-vesco-50 hover:text-vesco-600">Escolas</button>
+          </span>
+        </div>
+      </section>
+
+      <!-- ============ CAMPANHAS ============ -->
+      <section class="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
+        <div class="border-b border-slate-200 px-5 py-4">
+          <h2 class="font-semibold">Campanhas</h2>
+          <p id="txtAgenda" class="text-sm text-slate-500">Cada busca vira uma campanha que o motor repete sozinho.</p>
+        </div>
+        <div class="overflow-x-auto">
+          <table class="w-full text-left text-sm">
+            <thead class="bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
+              <tr>
+                <th class="px-5 py-3 font-medium">Busca</th>
+                <th class="px-5 py-3 font-medium">Última execução</th>
+                <th class="px-5 py-3 font-medium">Agenda</th>
+                <th class="px-5 py-3 font-medium">Envio auto</th>
+                <th class="px-5 py-3 text-right font-medium">Ações</th>
+              </tr>
+            </thead>
+            <tbody id="tbodyCampanhas" class="divide-y divide-slate-100"></tbody>
+          </table>
+        </div>
+        <p id="semCampanhas" class="px-5 py-8 text-center text-sm text-slate-500">Nenhuma campanha ainda. Faça a primeira busca acima.</p>
+      </section>
+
+      <!-- ============ FUNIL ============ -->
+      <section class="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
+        <div class="flex flex-wrap items-end justify-between gap-3 border-b border-slate-200 px-5 py-4">
+          <div>
+            <h2 class="font-semibold">Funil de Prospecção</h2>
+            <p id="txtResumoFunil" class="text-sm text-slate-500">—</p>
+          </div>
+          <div class="flex flex-wrap items-center gap-2">
+            <input id="filtroBusca" type="search" placeholder="Buscar empresa, e-mail, tel." class="w-48 rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-vesco-500 focus:outline-none" />
+            <select id="filtroCampanha" class="rounded-lg border border-slate-300 px-3 py-2 text-sm"><option value="">Todas as campanhas</option></select>
+            <select id="filtroStatus" class="rounded-lg border border-slate-300 px-3 py-2 text-sm">
+              <option value="">Todos os status</option>
+              <option value="NOVO">Novo</option>
+              <option value="CONTATADO">Contatado</option>
+              <option value="RESPONDEU">Respondeu</option>
+              <option value="DESCARTADO">Descartado</option>
+              <option value="OPTOUT">Descadastrado</option>
+            </select>
+            <button id="btnCsv" type="button" class="flex items-center gap-1.5 rounded-lg border border-slate-300 px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50">
+              <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4v12m0 0l-4-4m4 4l4-4M4 20h16"/></svg>
+              CSV
+            </button>
+          </div>
+        </div>
+        <div class="overflow-x-auto">
+          <table class="w-full text-left text-sm">
+            <thead class="bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
+              <tr>
+                <th class="px-5 py-3 font-medium">Empresa</th>
+                <th class="px-5 py-3 font-medium">Contato</th>
+                <th class="px-5 py-3 font-medium">WhatsApp</th>
+                <th class="px-5 py-3 font-medium">E-mail</th>
+                <th class="px-5 py-3 font-medium">Status</th>
+                <th class="px-5 py-3 text-right font-medium">Ações</th>
+              </tr>
+            </thead>
+            <tbody id="tbodyLeads" class="divide-y divide-slate-100"></tbody>
+          </table>
+        </div>
+        <p id="semLeads" class="hidden px-5 py-12 text-center text-sm text-slate-500">Nenhum lead com esses filtros.</p>
+      </section>
+
+      <!-- ============ MENSAGENS ============ -->
+      <section class="rounded-xl border border-slate-200 bg-white shadow-sm">
+        <button id="btnMensagens" type="button" class="flex w-full items-center justify-between px-5 py-4 text-left">
+          <span>
+            <span class="block font-semibold">Mensagens</span>
+            <span class="text-sm text-slate-500">O que o motor envia. Variáveis: <code>{empresa}</code>, <code>{nicho}</code>, <code>{regiao}</code>.</span>
+          </span>
+          <svg id="setaMensagens" class="h-5 w-5 text-slate-400 transition" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M6 9l6 6 6-6"/></svg>
+        </button>
+        <form id="formMensagens" class="hidden space-y-4 border-t border-slate-200 p-5">
+          <div class="grid gap-4 md:grid-cols-2">
+            <div class="space-y-4">
+              <h3 class="text-sm font-semibold text-zap-600">WhatsApp</h3>
+              <label class="block"><span class="text-sm font-medium text-slate-700">Mensagem</span>
+                <textarea name="msg_whatsapp" rows="4" class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-vesco-500 focus:outline-none"></textarea></label>
+              <label class="block"><span class="text-sm font-medium text-slate-700">Rodapé (descadastro)</span>
+                <input name="msg_whatsapp_rodape" class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-vesco-500 focus:outline-none" /></label>
+              <label class="flex items-center gap-2 text-sm"><input name="whatsapp_enviar_apresentacao" type="checkbox" class="h-4 w-4 rounded border-slate-300" /> Enviar o PDF da apresentação logo depois</label>
+              <label class="block"><span class="text-sm font-medium text-slate-700">Legenda do PDF</span>
+                <input name="legenda_apresentacao" class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-vesco-500 focus:outline-none" /></label>
+            </div>
+            <div class="space-y-4">
+              <h3 class="text-sm font-semibold text-vesco-500">E-mail</h3>
+              <label class="block"><span class="text-sm font-medium text-slate-700">Assunto</span>
+                <input name="email_assunto" class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-vesco-500 focus:outline-none" /></label>
+              <label class="block"><span class="text-sm font-medium text-slate-700">Corpo</span>
+                <textarea name="email_corpo" rows="9" class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-vesco-500 focus:outline-none"></textarea></label>
+            </div>
+          </div>
+          <div class="flex justify-end">
+            <button type="submit" class="rounded-lg bg-vesco-500 px-5 py-2 text-sm font-medium text-white hover:bg-vesco-600">Salvar mensagens</button>
+          </div>
+        </form>
+      </section>
+    </div>
+  </main>
+
+  <div id="toasts" class="fixed bottom-4 right-4 z-50 flex w-[calc(100%-2rem)] max-w-sm flex-col gap-2"></div>
+
+<script>
+/* =====================================================================
+   MÁQUINA DE LEADS VESCO — painel
+   Esta página só comanda e acompanha. Quem busca, acha e-mail e envia
+   WhatsApp/e-mail é o MOTOR no Easypanel (pasta motor/).
+   ===================================================================== */
+
+const CHAVE_LOCAL = 'vesco_leads_conexao_v2';
+const $ = id => document.getElementById(id);
+
+let conexao = lerConexao();
+let ajustes = {};
+let campanhas = [];
+let leads = [];
+let ultimoResumo = null;
+
+const ROTULO_LEAD = {
+  NOVO:       ['Novo', 'bg-slate-100 text-slate-700'],
+  CONTATADO:  ['Contatado', 'bg-blue-100 text-blue-800'],
+  RESPONDEU:  ['Respondeu', 'bg-green-100 text-green-800'],
+  DESCARTADO: ['Descartado', 'bg-slate-100 text-slate-400'],
+  OPTOUT:     ['Descadastrado', 'bg-red-100 text-red-700']
+};
+const ROTULO_CANAL = {
+  pendente:     ['Aguardando', 'text-slate-500'],
+  fila:         ['Na fila', 'text-amber-600'],
+  enviando:     ['Enviando…', 'text-amber-600'],
+  enviado:      ['Enviado', 'text-green-700'],
+  falha:        ['Falhou', 'text-red-600'],
+  sem_numero:   ['Sem número', 'text-slate-400'],
+  sem_whatsapp: ['Sem WhatsApp', 'text-slate-400'],
+  sem_email:    ['Sem e-mail', 'text-slate-400'],
+  duplicado:    ['Repetido', 'text-slate-400']
+};
+
+/* ---------------------------------------------------------------------
+   FETCH GENÉRICO para o motor (timeout + token + erro legível)
+   --------------------------------------------------------------------- */
+async function api(caminho, { method = 'GET', body, timeoutMs = 15000 } = {}) {
+  const resp = await fetch(conexao.url + '/api' + caminho, {
+    method,
+    headers: { Authorization: 'Bearer ' + conexao.token, 'Content-Type': 'application/json' },
+    body: body !== undefined ? JSON.stringify(body) : undefined,
+    signal: AbortSignal.timeout(timeoutMs)
+  });
+  if (resp.status === 204) return null;
+  const dados = await resp.json().catch(() => ({}));
+  if (!resp.ok) throw new Error(dados.erro || `HTTP ${resp.status}`);
+  return dados;
+}
+
+/* ---------------------------------------------------------------------
+   CARREGAMENTO
+   --------------------------------------------------------------------- */
+async function carregarResumo() {
+  const r = await api('/resumo');
+  ultimoResumo = r;
+  setConectado(true);
+
+  const chave = $('chaveEnvio');
+  chave.setAttribute('aria-checked', String(r.envio_ativo));
+  chave.className = `chave ${r.envio_ativo ? 'bg-zap-500' : 'bg-slate-300'}`;
+  const dias = diasTexto(r.horario.dias);
+  $('txtEnvio').textContent = !r.envio_ativo
+    ? 'Pausado. Ligue para o motor começar a enviar a fila.'
+    : r.dentro_horario
+      ? `Ligado · enviando de ${r.horario.inicio}h às ${r.horario.fim}h (${dias})`
+      : `Ligado · fora do horário, volta às ${r.horario.inicio}h (${dias})`;
+
+  barra('barraZap', 'txtZapHoje', r.hoje.whatsapp, r.limites.whatsapp, r.totais.fila_whatsapp);
+  barra('barraEmail', 'txtEmailHoje', r.hoje.email, r.limites.email, r.totais.fila_email);
+
+  const avisos = [];
+  if (r.simulado.google) avisos.push('Google simulado');
+  if (r.simulado.whatsapp) avisos.push('WhatsApp simulado');
+  if (r.simulado.email) avisos.push('E-mail simulado');
+  if (!r.apresentacao) avisos.push('Sem PDF da apresentação');
+  $('avisosSimulado').innerHTML = avisos
+    .map(a => `<span class="rounded-full bg-amber-100 px-2.5 py-1 text-xs font-medium text-amber-800">${esc(a)}</span>`).join('');
+
+  $('kpiLeads').textContent = r.totais.leads;
+  $('kpiContatados').textContent = r.totais.contatados;
+  $('kpiResponderam').textContent = r.totais.responderam;
+  $('kpiOptout').textContent = r.totais.optout;
+  $('txtAgenda').textContent = `Cada busca vira uma campanha. As que estão com "Agenda" ligada rodam sozinhas (${cronTexto(r.agenda_busca)}).`;
+}
+
+async function carregarCampanhas() {
+  campanhas = await api('/campanhas');
+  renderCampanhas();
+}
+
+async function carregarLeads() {
+  const p = new URLSearchParams({ limit: 500 });
+  if ($('filtroCampanha').value) p.set('campanha_id', $('filtroCampanha').value);
+  if ($('filtroStatus').value) p.set('status', $('filtroStatus').value);
+  if ($('filtroBusca').value.trim()) p.set('q', $('filtroBusca').value.trim());
+  const r = await api('/leads?' + p);
+  leads = r.leads;
+  $('txtResumoFunil').textContent = r.total > leads.length ? `${leads.length} de ${r.total} leads` : `${r.total} leads`;
+  renderLeads();
+}
+
+async function carregarAjustes() {
+  ajustes = await api('/ajustes');
+  const f = $('formMensagens');
+  for (const el of f.elements) {
+    if (!el.name) continue;
+    if (el.type === 'checkbox') el.checked = !!ajustes[el.name];
+    else el.value = ajustes[el.name] ?? '';
+  }
+}
+
+async function atualizarTudo() {
+  if (!conexao.url) return;
+  try {
+    await Promise.all([carregarResumo(), carregarCampanhas(), carregarLeads()]);
+  } catch (err) {
+    setConectado(false, err.message);
+  }
+}
+
+/* ---------------------------------------------------------------------
+   RENDERIZAÇÃO
+   --------------------------------------------------------------------- */
+function renderCampanhas() {
+  const sel = $('filtroCampanha');
+  const atual = sel.value;
+  sel.innerHTML = '<option value="">Todas as campanhas</option>' +
+    campanhas.map(c => `<option value="${c.id}">${esc(c.nicho)} · ${esc(c.regiao)}</option>`).join('');
+  sel.value = campanhas.some(c => String(c.id) === atual) ? atual : '';
+
+  $('semCampanhas').classList.toggle('hidden', campanhas.length > 0);
+  $('tbodyCampanhas').innerHTML = campanhas.map(c => {
+    const r = c.ultimo_resultado;
+    const execucao = c.executando
+      ? '<span class="flex items-center gap-2 text-amber-600"><svg class="spin h-4 w-4" fill="none" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-opacity=".3" stroke-width="3"/><path d="M21 12a9 9 0 00-9-9" stroke="currentColor" stroke-width="3" stroke-linecap="round"/></svg>Buscando…</span>'
+      : !r ? '<span class="text-slate-400">Nunca rodou</span>'
+      : r.status === 'erro' ? `<span class="text-red-600" title="${esc(r.erro)}">Erro: ${esc(r.erro).slice(0, 60)}</span>`
+      : `<span class="text-slate-700">${r.novos} novos de ${r.encontrados}</span><span class="block text-xs text-slate-500">${dataCurta(c.ultima_execucao)}${r.simulado ? ' · simulado' : ''}</span>`;
+    return `
+      <tr class="hover:bg-slate-50/70">
+        <td class="px-5 py-3"><p class="font-medium text-slate-900">${esc(c.nicho)}</p><p class="text-xs text-slate-500">${esc(c.regiao)} · ${c.total_leads} leads</p></td>
+        <td class="px-5 py-3">${execucao}</td>
+        <td class="px-5 py-3">${chaveHtml(c.ativa, `data-camp="${c.id}" data-campo="ativa"`)}</td>
+        <td class="px-5 py-3">${chaveHtml(c.auto_envio, `data-camp="${c.id}" data-campo="auto_envio"`)}</td>
+        <td class="px-5 py-3">
+          <div class="flex justify-end gap-1">
+            <button type="button" data-acao-camp="rodar" data-id="${c.id}" ${c.executando ? 'disabled' : ''} class="rounded-lg px-2.5 py-1.5 text-xs font-medium text-vesco-600 hover:bg-vesco-50 disabled:opacity-40">Rodar agora</button>
+            <button type="button" data-acao-camp="ver" data-id="${c.id}" class="rounded-lg px-2.5 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-100">Ver leads</button>
+            <button type="button" data-acao-camp="excluir" data-id="${c.id}" class="rounded-lg px-2.5 py-1.5 text-xs font-medium text-red-600 hover:bg-red-50">Excluir</button>
+          </div>
+        </td>
+      </tr>`;
+  }).join('');
+}
+
+const ICONE_WHATS = '<svg class="h-4 w-4" viewBox="0 0 24 24" fill="currentColor"><path d="M17.5 14.4c-.3-.1-1.8-.9-2-1s-.5-.1-.7.1-.8 1-1 1.2-.4.2-.7.1a8.2 8.2 0 01-4.1-3.6c-.3-.5.3-.5.9-1.6.1-.2 0-.4 0-.5l-.9-2.2c-.2-.6-.5-.5-.7-.5h-.6a1.1 1.1 0 00-.8.4 3.4 3.4 0 00-1 2.5 5.9 5.9 0 001.2 3.1 13.5 13.5 0 005.2 4.6c1.9.8 2.7.9 3.6.8a3.1 3.1 0 002-1.4 2.5 2.5 0 00.2-1.4c-.1-.1-.3-.2-.6-.3zM12 21.8a9.8 9.8 0 01-5-1.4l-.4-.2-3.7 1 1-3.6-.2-.4A9.8 9.8 0 1112 21.8zM20.5 3.5A11.8 11.8 0 001.9 17.7L.2 24l6.4-1.7A11.8 11.8 0 0024 12a11.7 11.7 0 00-3.5-8.5z"/></svg>';
+const ICONE_ENVIAR = '<svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M5 12h14M13 6l6 6-6 6"/></svg>';
+
+function canalHtml(status, data) {
+  const [rotulo, cor] = ROTULO_CANAL[status] || [status, 'text-slate-500'];
+  return `<span class="whitespace-nowrap text-xs font-medium ${cor}">${rotulo}</span>${data ? `<span class="block text-xs text-slate-400">${dataCurta(data)}</span>` : ''}`;
+}
+
+function renderLeads() {
+  $('semLeads').classList.toggle('hidden', leads.length > 0);
+  $('tbodyLeads').innerHTML = leads.map(l => {
+    const [rotulo, cor] = ROTULO_LEAD[l.status] || [l.status, ''];
+    const bloqueado = ['OPTOUT', 'DESCARTADO'].includes(l.status);
+    const enfileiravel = st => ['pendente', 'falha'].includes(st);
+    const podeEnfileirar = !bloqueado && (
+      (l.whatsapp && enfileiravel(l.whatsapp_status)) || (l.email && enfileiravel(l.email_status)));
+    return `
+      <tr class="hover:bg-slate-50/70 ${bloqueado ? 'opacity-60' : ''}">
+        <td class="max-w-xs px-5 py-3">
+          <p class="font-medium text-slate-900">${esc(l.nome)}</p>
+          <p class="truncate text-xs text-slate-500" title="${esc(l.endereco || '')}">${esc(l.endereco || '')}</p>
+          ${l.site ? `<a href="${esc(l.site)}" target="_blank" rel="noopener" class="text-xs text-vesco-500 hover:underline">site</a>` : ''}
+        </td>
+        <td class="px-5 py-3">
+          <p class="whitespace-nowrap text-slate-700">${esc(l.telefone || '—')}</p>
+          <p class="text-xs text-slate-500">${esc(l.email || 'sem e-mail')}</p>
+        </td>
+        <td class="px-5 py-3">${canalHtml(l.whatsapp_status, l.whatsapp_enviado_em)}</td>
+        <td class="px-5 py-3">${canalHtml(l.email_status, l.email_enviado_em)}</td>
+        <td class="px-5 py-3">
+          <span class="inline-flex whitespace-nowrap rounded-full px-2.5 py-1 text-xs font-medium ${cor}">${rotulo}</span>
+          ${l.ultimo_erro ? `<span class="mt-1 block max-w-[12rem] truncate text-xs text-red-500" title="${esc(l.ultimo_erro)}">${esc(l.ultimo_erro)}</span>` : ''}
+        </td>
+        <td class="px-5 py-3">
+          <div class="flex justify-end gap-1.5">
+            <button type="button" data-acao="whats" data-id="${l.id}" ${l.whatsapp && !bloqueado ? '' : 'disabled'} title="Abrir conversa no seu WhatsApp"
+              class="flex items-center gap-1 rounded-lg bg-zap-500 px-2.5 py-1.5 text-xs font-semibold text-white hover:bg-zap-600 disabled:cursor-not-allowed disabled:opacity-40">${ICONE_WHATS}</button>
+            <button type="button" data-acao="enfileirar" data-id="${l.id}" ${podeEnfileirar ? '' : 'disabled'} title="Colocar no topo da fila do motor (WhatsApp + e-mail)"
+              class="flex items-center gap-1 whitespace-nowrap rounded-lg border border-slate-300 bg-white px-2.5 py-1.5 text-xs font-semibold text-vesco-600 hover:border-vesco-500 hover:bg-vesco-50 disabled:cursor-not-allowed disabled:opacity-40">${ICONE_ENVIAR} Enviar</button>
+            ${bloqueado
+              ? (l.status === 'DESCARTADO' ? `<button type="button" data-acao="reativar" data-id="${l.id}" class="rounded-lg px-2.5 py-1.5 text-xs text-slate-600 hover:bg-slate-100">Reativar</button>` : '')
+              : `<button type="button" data-acao="descartar" data-id="${l.id}" title="Tirar do funil" class="rounded-lg px-2.5 py-1.5 text-xs text-slate-500 hover:bg-red-50 hover:text-red-600">Descartar</button>`}
+          </div>
+        </td>
+      </tr>`;
+  }).join('');
+}
+
+function barra(idBarra, idTexto, feitos, limite, fila) {
+  $(idBarra).style.width = Math.min(100, limite ? (feitos / limite) * 100 : 0) + '%';
+  $(idTexto).textContent = `${feitos} / ${limite} · fila ${fila}`;
+}
+
+function chaveHtml(ligada, attrs) {
+  return `<button type="button" role="switch" aria-checked="${ligada}" ${attrs} class="chave chave-sm ${ligada ? 'bg-vesco-500' : 'bg-slate-300'}"></button>`;
+}
+
+function setConectado(ok, erro) {
+  const b = $('badgeConexao');
+  b.classList.remove('hidden');
+  b.className = `rounded-full px-2.5 py-1 text-xs font-medium sm:inline-flex ${ok ? 'bg-green-500/20 text-green-200' : 'bg-red-500/20 text-red-200'}`;
+  b.textContent = ok ? 'Motor online' : 'Motor fora do ar';
+  b.title = erro || '';
+}
+
+function mostrarTelas() {
+  const tem = !!conexao.url;
+  $('app').classList.toggle('hidden', !tem);
+  $('semConexao').classList.toggle('hidden', tem);
+  $('cfgUrl').value = conexao.url;
+  $('cfgToken').value = conexao.token;
+}
+
+/* ---------------------------------------------------------------------
+   AÇÕES
+   --------------------------------------------------------------------- */
+// WhatsApp manual: abre a conversa no SEU WhatsApp com a mensagem pronta
+function abrirWhatsApp(lead) {
+  const campanha = campanhas.find(c => c.id === lead.campanha_id);
+  const modelo = campanha?.mensagem || ajustes.msg_whatsapp || '';
+  const texto = modelo
+    .replaceAll('{empresa}', lead.nome).replaceAll('{nicho}', lead.nicho || '').replaceAll('{regiao}', lead.regiao || '');
+  window.open(`https://wa.me/${lead.whatsapp}?text=${encodeURIComponent(texto)}`, '_blank', 'noopener');
+}
+
+async function acaoLead(acao, id) {
+  const lead = leads.find(l => l.id === id);
+  if (!lead) return;
+  try {
+    if (acao === 'whats') return abrirWhatsApp(lead);
+    if (acao === 'enfileirar') {
+      await api(`/leads/${id}/enviar`, { method: 'POST', body: {} });
+      toast(`${lead.nome} foi para o topo da fila.`, 'ok');
+    }
+    if (acao === 'descartar') await api(`/leads/${id}`, { method: 'PATCH', body: { status: 'DESCARTADO' } });
+    if (acao === 'reativar') await api(`/leads/${id}`, { method: 'PATCH', body: { status: 'NOVO' } });
+    await Promise.all([carregarLeads(), carregarResumo()]);
+  } catch (err) {
+    toast(err.message, 'erro');
+  }
+}
+
+async function acaoCampanha(acao, id) {
+  try {
+    if (acao === 'rodar') {
+      await api(`/campanhas/${id}/executar`, { method: 'POST' });
+      toast('Busca iniciada.', 'info');
+    }
+    if (acao === 'ver') {
+      $('filtroCampanha').value = String(id);
+      await carregarLeads();
+      $('tbodyLeads').scrollIntoView({ behavior: 'smooth', block: 'start' });
+      return;
+    }
+    if (acao === 'excluir') {
+      if (!confirm('Excluir a campanha? Os leads continuam no funil.')) return;
+      await api(`/campanhas/${id}`, { method: 'DELETE' });
+    }
+    await carregarCampanhas();
+  } catch (err) {
+    toast(err.message, 'erro');
+  }
+}
+
+function exportarCsv() {
+  const cab = ['Empresa', 'Telefone', 'E-mail', 'Site', 'Endereço', 'Nicho', 'Região', 'Status', 'WhatsApp', 'E-mail status'];
+  const linhas = leads.map(l => [l.nome, l.telefone, l.email, l.site, l.endereco, l.nicho, l.regiao,
+    (ROTULO_LEAD[l.status] || [l.status])[0], (ROTULO_CANAL[l.whatsapp_status] || [l.whatsapp_status])[0], (ROTULO_CANAL[l.email_status] || [l.email_status])[0]]);
+  const csv = [cab, ...linhas].map(r => r.map(v => `"${String(v ?? '').replace(/"/g, '""')}"`).join(';')).join('\r\n');
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8' }));
+  a.download = `leads-vesco-${new Date().toISOString().slice(0, 10)}.csv`;
+  a.click();
+  URL.revokeObjectURL(a.href);
+}
+
+/* ---------------------------------------------------------------------
+   UTILITÁRIOS
+   --------------------------------------------------------------------- */
+function esc(s) {
+  return String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+}
+function dataCurta(iso) {
+  return iso ? new Date(iso).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }) : '';
+}
+function diasTexto(dias) {
+  const nomes = ['dom', 'seg', 'ter', 'qua', 'qui', 'sex', 'sáb'];
+  if (dias.join() === '1,2,3,4,5') return 'seg a sex';
+  return dias.map(d => nomes[d]).join(', ');
+}
+function cronTexto(expr) {
+  const m = /^(\d+) (\d+) \* \* (\S+)$/.exec(expr || '');
+  if (!m) return `agenda: ${expr}`;
+  const dias = m[3] === '1-5' ? 'seg a sex' : m[3] === '*' ? 'todo dia' : `dias ${m[3]}`;
+  return `${dias} às ${m[2].padStart(2, '0')}:${m[1].padStart(2, '0')}`;
+}
+function toast(msg, tipo = 'info') {
+  const cores = { ok: 'border-green-200 bg-green-50 text-green-800', erro: 'border-red-200 bg-red-50 text-red-800', info: 'border-slate-200 bg-white text-slate-700' };
+  const el = document.createElement('div');
+  el.className = `toast-enter rounded-lg border px-4 py-3 text-sm shadow-lg ${cores[tipo]}`;
+  el.textContent = msg;
+  $('toasts').appendChild(el);
+  setTimeout(() => el.remove(), 4500);
+}
+function lerConexao() {
+  try { return { url: '', token: '', ...JSON.parse(localStorage.getItem(CHAVE_LOCAL) || '{}') }; }
+  catch { return { url: '', token: '' }; }
+}
+const atrasar = (fn, ms) => { let t; return (...a) => { clearTimeout(t); t = setTimeout(() => fn(...a), ms); }; };
+
+/* ---------------------------------------------------------------------
+   EVENTOS
+   --------------------------------------------------------------------- */
+$('btnConexao').addEventListener('click', () => $('painelConexao').classList.toggle('hidden'));
+
+$('formConexao').addEventListener('submit', async e => {
+  e.preventDefault();
+  conexao = { url: $('cfgUrl').value.trim().replace(/\/+$/, ''), token: $('cfgToken').value.trim() };
+  try { localStorage.setItem(CHAVE_LOCAL, JSON.stringify(conexao)); } catch {}
+  mostrarTelas();
+  try {
+    await Promise.all([carregarResumo(), carregarAjustes()]);
+    await atualizarTudo();
+    $('painelConexao').classList.add('hidden');
+    toast('Conectado ao motor.', 'ok');
+  } catch (err) {
+    setConectado(false, err.message);
+    toast(`Não conectou: ${err.message}`, 'erro');
+  }
+});
+
+$('chaveEnvio').addEventListener('click', async () => {
+  const ligar = $('chaveEnvio').getAttribute('aria-checked') !== 'true';
+  if (ligar && ultimoResumo?.simulado && !ultimoResumo.simulado.whatsapp && !confirm('Ligar o envio automático? O motor vai começar a mandar WhatsApp e e-mail para a fila.')) return;
+  try {
+    await api('/ajustes', { method: 'PUT', body: { envio_ativo: ligar } });
+    await carregarResumo();
+    toast(ligar ? 'Envio automático ligado.' : 'Envio automático pausado.', ligar ? 'ok' : 'info');
+  } catch (err) { toast(err.message, 'erro'); }
+});
+
+$('formBusca').addEventListener('submit', async e => {
+  e.preventDefault();
+  const btn = $('btnRastrear');
+  btn.disabled = true;
+  try {
+    const c = await api('/campanhas', {
+      method: 'POST',
+      body: { nicho: $('inpNicho').value.trim(), regiao: $('inpRegiao').value.trim(), auto_envio: $('chkAuto').checked, ativa: $('chkAgenda').checked }
+    });
+    toast(`Buscando "${c.nicho}" em ${c.regiao}…`, 'info');
+    $('inpNicho').value = '';
+    $('inpRegiao').value = '';
+    await carregarCampanhas();
+    acompanharBusca(c.id);
+  } catch (err) {
+    toast(`Erro: ${err.message}`, 'erro');
+  } finally {
+    btn.disabled = false;
+  }
+});
+
+// Acompanha a busca em segundo plano até terminar e mostra os leads dela
+async function acompanharBusca(id) {
+  for (let i = 0; i < 60; i++) {
+    await new Promise(r => setTimeout(r, 3000));
+    await carregarCampanhas().catch(() => {});
+    const c = campanhas.find(x => x.id === id);
+    if (!c || c.executando) continue;
+    const r = c.ultimo_resultado || {};
+    toast(r.status === 'erro' ? `Busca falhou: ${r.erro}` : `${r.novos} leads novos (${r.com_email} com e-mail).`, r.status === 'erro' ? 'erro' : 'ok');
+    $('filtroCampanha').value = String(id);
+    await Promise.all([carregarLeads(), carregarResumo()]);
+    return;
+  }
+}
+
+$('tbodyLeads').addEventListener('click', e => {
+  const b = e.target.closest('button[data-acao]');
+  if (b && !b.disabled) acaoLead(b.dataset.acao, Number(b.dataset.id));
+});
+
+$('tbodyCampanhas').addEventListener('click', async e => {
+  const chave = e.target.closest('button[data-camp]');
+  if (chave) {
+    const ligada = chave.getAttribute('aria-checked') !== 'true';
+    try {
+      await api(`/campanhas/${chave.dataset.camp}`, { method: 'PATCH', body: { [chave.dataset.campo]: ligada } });
+      await carregarCampanhas();
+    } catch (err) { toast(err.message, 'erro'); }
+    return;
+  }
+  const b = e.target.closest('button[data-acao-camp]');
+  if (b && !b.disabled) acaoCampanha(b.dataset.acaoCamp, Number(b.dataset.id));
+});
+
+$('filtroCampanha').addEventListener('change', () => carregarLeads().catch(err => toast(err.message, 'erro')));
+$('filtroStatus').addEventListener('change', () => carregarLeads().catch(err => toast(err.message, 'erro')));
+$('filtroBusca').addEventListener('input', atrasar(() => carregarLeads().catch(err => toast(err.message, 'erro')), 350));
+$('btnCsv').addEventListener('click', exportarCsv);
+
+document.querySelectorAll('.atalho').forEach(b =>
+  b.addEventListener('click', () => { $('inpNicho').value = b.dataset.nicho; $('inpRegiao').focus(); }));
+
+$('btnMensagens').addEventListener('click', () => {
+  $('formMensagens').classList.toggle('hidden');
+  $('setaMensagens').classList.toggle('rotate-180');
+});
+
+$('formMensagens').addEventListener('submit', async e => {
+  e.preventDefault();
+  const dados = {};
+  for (const el of e.target.elements) {
+    if (el.name) dados[el.name] = el.type === 'checkbox' ? el.checked : el.value;
+  }
+  try {
+    ajustes = await api('/ajustes', { method: 'PUT', body: dados });
+    toast('Mensagens salvas.', 'ok');
+  } catch (err) { toast(err.message, 'erro'); }
+});
+
+/* ---------------------------------------------------------------------
+   INÍCIO + atualização automática a cada 15s
+   --------------------------------------------------------------------- */
+mostrarTelas();
+if (conexao.url) {
+  carregarAjustes().catch(() => {});
+  atualizarTudo();
+} else {
+  $('painelConexao').classList.remove('hidden');
+}
+setInterval(() => { if (!document.hidden) atualizarTudo(); }, 15000);
+</script>
+</body>
+</html>
