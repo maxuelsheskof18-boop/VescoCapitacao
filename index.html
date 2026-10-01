@@ -234,7 +234,7 @@
             </button>
           </form>
           <div class="mt-4 flex flex-wrap items-center gap-x-6 gap-y-2 text-sm">
-            <label id="lblIA" class="flex items-center gap-2"><input id="chkIA" type="checkbox" checked class="h-4 w-4 rounded border-slate-300" /> <span>Criar mensagem com IA para este nicho</span></label>
+            <label id="lblIA" class="hidden flex items-center gap-2"><input id="chkIA" type="checkbox" checked class="h-4 w-4 rounded border-slate-300" /> <span>Criar mensagem com IA para este nicho</span></label>
             <label class="flex items-center gap-2"><input id="chkAuto" type="checkbox" class="h-4 w-4 rounded border-slate-300" /> Enviar automaticamente</label>
             <label class="flex items-center gap-2"><input id="chkAgenda" type="checkbox" checked class="h-4 w-4 rounded border-slate-300" /> Repetir na busca agendada</label>
           </div>
@@ -420,12 +420,16 @@
           <div class="flex flex-wrap items-end gap-3">
             <label class="block min-w-[240px] flex-1"><span class="text-sm font-medium text-violet-900">O que você sabe desse nicho? (opcional)</span>
               <input id="mcObs" placeholder="Ex: vendem muito no fim de semana, usam copo 300ml e gelo" class="mt-1 w-full rounded-lg border border-violet-200 bg-white px-3 py-2 text-sm focus:border-violet-500 focus:outline-none" /></label>
-            <button id="mcGerar" type="button" class="flex items-center gap-2 rounded-lg bg-violet-600 px-4 py-2 text-sm font-semibold text-white hover:bg-violet-700 disabled:cursor-wait disabled:opacity-60">
+            <button id="mcCopiarPrompt" type="button" class="flex items-center gap-2 rounded-lg border border-violet-300 bg-white px-4 py-2 text-sm font-semibold text-violet-700 hover:bg-violet-100">
+              <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="9" y="9" width="11" height="11" rx="2"/><path stroke-linecap="round" stroke-linejoin="round" d="M5 15V5a2 2 0 012-2h10"/></svg>
+              <span>Copiar prompt</span>
+            </button>
+            <button id="mcGerar" type="button" class="hidden items-center gap-2 rounded-lg bg-violet-600 px-4 py-2 text-sm font-semibold text-white hover:bg-violet-700 disabled:cursor-wait disabled:opacity-60">
               <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 3l1.9 4.6L18.5 9l-4.6 1.9L12 15.5l-1.9-4.6L5.5 9l4.6-1.4L12 3zM19 15l.9 2.1L22 18l-2.1.9L19 21l-.9-2.1L16 18l2.1-.9L19 15z"/></svg>
               <span>Gerar com IA</span>
             </button>
           </div>
-          <p id="mcIAInfo" class="mt-2 text-xs text-violet-800">A IA reescreve a sua mensagem padrão para a dor desse nicho. Você revisa antes de salvar.</p>
+          <p id="mcIAInfo" class="mt-2 text-xs text-violet-800"></p>
           <div id="mcContexto" class="mt-3 hidden space-y-2 text-xs"></div>
         </div>
 
@@ -580,7 +584,6 @@ async function carregarResumo() {
   if (!r.configurado.google) avisos.push('Busca bloqueada: falta chave do Google');
   if (!r.configurado.whatsapp) avisos.push('WhatsApp não conectado');
   if (!r.configurado.email) avisos.push('E-mail não conectado');
-  if (!r.configurado.ia) avisos.push('IA desligada: falta ANTHROPIC_API_KEY');
   if (!r.apresentacao) avisos.push('Sem PDF da apresentação');
   if (r.google?.limite_mes && r.google.buscas_mes >= r.google.limite_mes) avisos.push('Limite grátis do Google atingido este mês');
   $('avisos').innerHTML = avisos
@@ -598,8 +601,7 @@ async function carregarResumo() {
   // IA: checkbox da busca e botão do modal só funcionam com a chave configurada
   $('chkIA').disabled = !r.configurado.ia;
   if (!r.configurado.ia) $('chkIA').checked = false;
-  $('lblIA').classList.toggle('opacity-50', !r.configurado.ia);
-  $('lblIA').title = r.configurado.ia ? '' : 'Configure ANTHROPIC_API_KEY no Easypanel para usar a IA';
+  $('lblIA').classList.toggle('hidden', !r.configurado.ia);
 }
 
 /* ---------------------------------------------------------------------
@@ -902,9 +904,11 @@ function abrirModalCampanha(id) {
   contarWhats();
   const iaOk = !!ultimoResumo?.configurado?.ia;
   $('mcGerar').disabled = !iaOk;
+  $('mcGerar').classList.toggle('hidden', !iaOk);
+  $('mcGerar').classList.toggle('flex', iaOk);
   $('mcIAInfo').textContent = iaOk
     ? 'A IA reescreve a sua mensagem padrão para a dor desse nicho. Você revisa antes de salvar.'
-    : 'IA desligada: coloque ANTHROPIC_API_KEY no Easypanel para usar. Você ainda pode escrever a mensagem à mão.';
+    : 'Grátis: clique em "Copiar prompt", cole no ChatGPT ou no Claude.ai, e cole aqui embaixo o WhatsApp e o e-mail que ele devolver.';
   $('modalCampanha').classList.replace('hidden', 'flex');
 }
 
@@ -927,6 +931,60 @@ function renderContextoIA(ctx) {
 function contarWhats() {
   const n = $('mcWhats').value.length;
   $('mcWhatsConta').textContent = n ? `${n} caracteres${n > 900 ? ' · longo para WhatsApp' : ''}` : 'vazio: usa a mensagem padrão';
+}
+
+function montarPrompt(c, observacoes) {
+  return `Você é redator de vendas B2B especialista em prospecção fria por WhatsApp e e-mail para pequenas e médias empresas brasileiras.
+
+Quem envia: Maxuel, vendedor da Vesco, distribuidora de produtos de limpeza e descartáveis na Grande São Paulo.
+Diferenciais REAIS (use só estes; não invente descontos, prazos, números nem clientes):
+- tudo em um único lugar (o cliente para de cotar com vários fornecedores);
+- entrega rápida em toda a Grande São Paulo;
+- pagamento facilitado para empresas;
+- cobrimos a cotação que o cliente já tem.
+Links: catalogo.vesco.com.br e vesco.com.br. WhatsApp de contato: (11) 91371-1908.
+
+NICHO: ${c.nicho}
+REGIÃO: ${c.regiao}
+${observacoes ? `O QUE SEI DESSE NICHO: ${observacoes}\n` : ''}
+Primeiro pense em quem decide a compra nesse nicho, o que ele mais consome de descartáveis e limpeza (seja específico) e o que mais incomoda na hora de comprar. Depois adapte a minha mensagem abaixo para atingir essa dor.
+
+MINHA MENSAGEM (siga o tom e a estrutura):
+---
+${ajustes.msg_whatsapp || ''}
+---
+
+Regras:
+- Português do Brasil, tom cordial e direto. Nada de "prezado(a)".
+- Estrutura: saudação + quem sou; dor do nicho citando 2 ou 3 produtos típicos; Vesco como solução; dois benefícios em lista; links; fechamento com UMA pergunta fácil de responder com "sim".
+- Pode usar {empresa}, {nicho} e {regiao} exatamente assim.
+- NÃO coloque rodapé de descadastro (o sistema já coloca).
+- WhatsApp: até 900 caracteres, no máximo 4 emojis, links sem https://.
+- E-mail: sem emojis, links completos com https://, assinatura "Maxuel / Vesco Distribuidora / WhatsApp: (11) 91371-1908", assunto com até 60 caracteres começando por {empresa}.
+
+Responda exatamente neste formato:
+WHATSAPP:
+(texto)
+
+ASSUNTO DO E-MAIL:
+(texto)
+
+CORPO DO E-MAIL:
+(texto)
+
+LEGENDA DO PDF:
+(uma linha)`;
+}
+
+async function copiarPrompt() {
+  const texto = montarPrompt(campanhaModal, $('mcObs').value.trim());
+  try {
+    await navigator.clipboard.writeText(texto);
+    toast('Prompt copiado. Cole no ChatGPT ou no Claude.ai e traga o resultado para os campos abaixo.', 'ok');
+  } catch {
+    // sem permissão de área de transferência: mostra o texto para copiar à mão
+    window.prompt('Copie o texto abaixo (Ctrl+C):', texto);
+  }
 }
 
 async function gerarComIA() {
@@ -1354,6 +1412,7 @@ $('modalCampanha').addEventListener('click', e => {
 });
 document.addEventListener('keydown', e => { if (e.key === 'Escape' && campanhaModal) fecharModal(); });
 $('mcGerar').addEventListener('click', gerarComIA);
+$('mcCopiarPrompt').addEventListener('click', copiarPrompt);
 $('mcSalvar').addEventListener('click', salvarModal);
 $('mcTeste').addEventListener('click', () => testeModal().catch(err => toast(err.message, 'erro')));
 $('mcWhats').addEventListener('input', contarWhats);
