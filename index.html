@@ -241,6 +241,18 @@
             <button type="submit" class="rounded-lg bg-vesco-500 px-5 py-2 text-sm font-medium text-white hover:bg-vesco-600">Salvar mensagens</button>
           </div>
         </form>
+        <form id="formTeste" class="flex flex-wrap items-end gap-3 border-t border-slate-200 bg-slate-50 px-5 py-4">
+          <div class="w-full">
+            <p class="text-sm font-semibold">Enviar teste para mim</p>
+            <p class="text-xs text-slate-500">Manda as mensagens salvas para o seu celular e e-mail, fora da fila. Use antes de ligar o envio automático.</p>
+          </div>
+          <label class="block"><span class="text-xs font-medium text-slate-600">Seu WhatsApp pessoal</span>
+            <input id="testeTelefone" type="tel" placeholder="(11) 9XXXX-XXXX" class="mt-1 w-48 rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-vesco-500 focus:outline-none" /></label>
+          <label class="block"><span class="text-xs font-medium text-slate-600">Seu e-mail</span>
+            <input id="testeEmail" type="email" placeholder="voce@exemplo.com" class="mt-1 w-60 rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-vesco-500 focus:outline-none" /></label>
+          <button id="btnTeste" type="submit" class="rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100 disabled:opacity-50">Enviar teste</button>
+          <p id="txtTeste" class="w-full text-sm"></p>
+        </form>
       </section>
     </div>
   </main>
@@ -320,9 +332,9 @@ async function carregarResumo() {
   barra('barraEmail', 'txtEmailHoje', r.hoje.email, r.limites.email, r.totais.fila_email);
 
   const avisos = [];
-  if (r.simulado.google) avisos.push('Google simulado');
-  if (r.simulado.whatsapp) avisos.push('WhatsApp simulado');
-  if (r.simulado.email) avisos.push('E-mail simulado');
+  if (!r.configurado.google) avisos.push('Busca bloqueada: falta chave do Google');
+  if (!r.configurado.whatsapp) avisos.push('WhatsApp não conectado');
+  if (!r.configurado.email) avisos.push('E-mail não conectado');
   if (!r.apresentacao) avisos.push('Sem PDF da apresentação');
   $('avisosSimulado').innerHTML = avisos
     .map(a => `<span class="rounded-full bg-amber-100 px-2.5 py-1 text-xs font-medium text-amber-800">${esc(a)}</span>`).join('');
@@ -386,7 +398,7 @@ function renderCampanhas() {
       ? '<span class="flex items-center gap-2 text-amber-600"><svg class="spin h-4 w-4" fill="none" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-opacity=".3" stroke-width="3"/><path d="M21 12a9 9 0 00-9-9" stroke="currentColor" stroke-width="3" stroke-linecap="round"/></svg>Buscando…</span>'
       : !r ? '<span class="text-slate-400">Nunca rodou</span>'
       : r.status === 'erro' ? `<span class="text-red-600" title="${esc(r.erro)}">Erro: ${esc(r.erro).slice(0, 60)}</span>`
-      : `<span class="text-slate-700">${r.novos} novos de ${r.encontrados}</span><span class="block text-xs text-slate-500">${dataCurta(c.ultima_execucao)}${r.simulado ? ' · simulado' : ''}</span>`;
+      : `<span class="text-slate-700">${r.novos} novos de ${r.encontrados}</span><span class="block text-xs text-slate-500">${dataCurta(c.ultima_execucao)}</span>`;
     return `
       <tr class="hover:bg-slate-50/70">
         <td class="px-5 py-3"><p class="font-medium text-slate-900">${esc(c.nicho)}</p><p class="text-xs text-slate-500">${esc(c.regiao)} · ${c.total_leads} leads</p></td>
@@ -597,7 +609,7 @@ $('formConexao').addEventListener('submit', async e => {
 
 $('chaveEnvio').addEventListener('click', async () => {
   const ligar = $('chaveEnvio').getAttribute('aria-checked') !== 'true';
-  if (ligar && ultimoResumo?.simulado && !ultimoResumo.simulado.whatsapp && !confirm('Ligar o envio automático? O motor vai começar a mandar WhatsApp e e-mail para a fila.')) return;
+  if (ligar && !confirm('Ligar o envio automático? O motor vai começar a mandar WhatsApp e e-mail para a fila.')) return;
   try {
     await api('/ajustes', { method: 'PUT', body: { envio_ativo: ligar } });
     await carregarResumo();
@@ -671,6 +683,39 @@ document.querySelectorAll('.atalho').forEach(b =>
 $('btnMensagens').addEventListener('click', () => {
   $('formMensagens').classList.toggle('hidden');
   $('setaMensagens').classList.toggle('rotate-180');
+});
+
+const CHAVE_TESTE = 'vesco_leads_teste_v1';
+try {
+  const t = JSON.parse(localStorage.getItem(CHAVE_TESTE) || '{}');
+  $('testeTelefone').value = t.telefone || '';
+  $('testeEmail').value = t.email || '';
+} catch {}
+
+$('formTeste').addEventListener('submit', async e => {
+  e.preventDefault();
+  const telefone = $('testeTelefone').value.trim();
+  const email = $('testeEmail').value.trim();
+  if (!telefone && !email) return toast('Informe um WhatsApp e/ou e-mail para o teste.', 'erro');
+  try { localStorage.setItem(CHAVE_TESTE, JSON.stringify({ telefone, email })); } catch {}
+
+  $('btnTeste').disabled = true;
+  $('txtTeste').className = 'w-full text-sm text-slate-500';
+  $('txtTeste').textContent = 'Enviando…';
+  try {
+    const r = await api('/teste', { method: 'POST', body: { telefone, email }, timeoutMs: 60000 });
+    const linha = (canal, x) => !x ? '' : x.ok
+      ? `${canal}: enviado, confira se chegou.`
+      : `${canal}: falhou (${x.erro}).`;
+    const falhou = [r.whatsapp, r.email].some(x => x && !x.ok);
+    $('txtTeste').className = `w-full text-sm ${falhou ? 'text-red-600' : 'text-green-700'}`;
+    $('txtTeste').textContent = [linha('WhatsApp', r.whatsapp), linha('E-mail', r.email)].filter(Boolean).join(' ');
+  } catch (err) {
+    $('txtTeste').className = 'w-full text-sm text-red-600';
+    $('txtTeste').textContent = err.message;
+  } finally {
+    $('btnTeste').disabled = false;
+  }
 });
 
 $('formMensagens').addEventListener('submit', async e => {
