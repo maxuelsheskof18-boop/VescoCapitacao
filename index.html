@@ -336,14 +336,17 @@ async function carregarResumo() {
   if (!r.configurado.whatsapp) avisos.push('WhatsApp não conectado');
   if (!r.configurado.email) avisos.push('E-mail não conectado');
   if (!r.apresentacao) avisos.push('Sem PDF da apresentação');
-  $('avisosSimulado').innerHTML = avisos
-    .map(a => `<span class="rounded-full bg-amber-100 px-2.5 py-1 text-xs font-medium text-amber-800">${esc(a)}</span>`).join('');
-
   $('kpiLeads').textContent = r.totais.leads;
   $('kpiContatados').textContent = r.totais.contatados;
   $('kpiResponderam').textContent = r.totais.responderam;
   $('kpiOptout').textContent = r.totais.optout;
   $('txtAgenda').textContent = `Cada busca vira uma campanha. As que estão com "Agenda" ligada rodam sozinhas (${cronTexto(r.agenda_busca)}).`;
+  if (r.google?.limite_mes) {
+    $('txtAgenda').textContent += ` Google este mês: ${r.google.buscas_mes} de ${r.google.limite_mes} buscas grátis.`;
+    if (r.google.buscas_mes >= r.google.limite_mes) avisos.push('Limite grátis do Google atingido este mês');
+  }
+  $('avisosSimulado').innerHTML = avisos
+    .map(a => `<span class="rounded-full bg-amber-100 px-2.5 py-1 text-xs font-medium text-amber-800">${esc(a)}</span>`).join('');
 }
 
 async function carregarCampanhas() {
@@ -569,7 +572,9 @@ function diasTexto(dias) {
 function cronTexto(expr) {
   const m = /^(\d+) (\d+) \* \* (\S+)$/.exec(expr || '');
   if (!m) return `agenda: ${expr}`;
-  const dias = m[3] === '1-5' ? 'seg a sex' : m[3] === '*' ? 'todo dia' : `dias ${m[3]}`;
+  const nomes = ['domingo', 'segunda', 'terça', 'quarta', 'quinta', 'sexta', 'sábado'];
+  const dias = m[3] === '1-5' ? 'seg a sex' : m[3] === '*' ? 'todo dia'
+    : /^[0-6]$/.test(m[3]) ? `toda ${nomes[m[3]]}` : `dias ${m[3]}`;
   return `${dias} às ${m[2].padStart(2, '0')}:${m[1].padStart(2, '0')}`;
 }
 function toast(msg, tipo = 'info') {
