@@ -107,11 +107,12 @@
       </section>
 
       <!-- ============ INDICADORES ============ -->
-      <section class="grid grid-cols-2 gap-3 md:grid-cols-4">
+      <section class="grid grid-cols-2 gap-3 md:grid-cols-5">
         <div class="rounded-xl border border-slate-200 bg-white p-4"><p class="text-xs font-medium uppercase tracking-wide text-slate-500">Leads no funil</p><p id="kpiLeads" class="mt-1 text-2xl font-semibold">0</p></div>
         <div class="rounded-xl border border-slate-200 bg-white p-4"><p class="text-xs font-medium uppercase tracking-wide text-slate-500">Contatados</p><p id="kpiContatados" class="mt-1 text-2xl font-semibold text-vesco-500">0</p></div>
         <div class="rounded-xl border border-slate-200 bg-white p-4"><p class="text-xs font-medium uppercase tracking-wide text-slate-500">Responderam</p><p id="kpiResponderam" class="mt-1 text-2xl font-semibold text-zap-600">0</p></div>
         <div class="rounded-xl border border-slate-200 bg-white p-4"><p class="text-xs font-medium uppercase tracking-wide text-slate-500">Descadastrados</p><p id="kpiOptout" class="mt-1 text-2xl font-semibold text-slate-500">0</p></div>
+        <a href="#secLigacoes" class="rounded-xl border border-amber-200 bg-amber-50 p-4 hover:bg-amber-100"><p class="text-xs font-medium uppercase tracking-wide text-amber-700">A ligar</p><p id="kpiLigar" class="mt-1 text-2xl font-semibold text-amber-700">0</p></a>
       </section>
 
       <!-- ============ MOTOR DE BUSCA ============ -->
@@ -164,6 +165,32 @@
           </table>
         </div>
         <p id="semCampanhas" class="px-5 py-8 text-center text-sm text-slate-500">Nenhuma campanha ainda. Faça a primeira busca acima.</p>
+      </section>
+
+      <!-- ============ LIGAÇÕES ============ -->
+      <section id="secLigacoes" class="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
+        <div class="flex flex-wrap items-end justify-between gap-3 border-b border-slate-200 px-5 py-4">
+          <div>
+            <h2 class="font-semibold">Ligações</h2>
+            <p class="text-sm text-slate-500">Leads com telefone que não dá para alcançar pelo WhatsApp (fixo, sem conta ou falha). Retornos vencidos aparecem primeiro.</p>
+          </div>
+          <label class="flex items-center gap-2 text-sm text-slate-600"><input id="chkLigTodas" type="checkbox" class="h-4 w-4 rounded border-slate-300" /> Mostrar finalizadas</label>
+        </div>
+        <div class="overflow-x-auto">
+          <table class="w-full text-left text-sm">
+            <thead class="bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
+              <tr>
+                <th class="px-5 py-3 font-medium">Empresa</th>
+                <th class="px-5 py-3 font-medium">Telefone</th>
+                <th class="px-5 py-3 font-medium">Situação</th>
+                <th class="px-5 py-3 font-medium">Observação</th>
+                <th class="px-5 py-3 text-right font-medium">Resultado da ligação</th>
+              </tr>
+            </thead>
+            <tbody id="tbodyLigacoes" class="divide-y divide-slate-100"></tbody>
+          </table>
+        </div>
+        <p id="semLigacoes" class="hidden px-5 py-10 text-center text-sm text-slate-500">Nenhuma ligação pendente.</p>
       </section>
 
       <!-- ============ FUNIL ============ -->
@@ -340,6 +367,7 @@ async function carregarResumo() {
   $('kpiContatados').textContent = r.totais.contatados;
   $('kpiResponderam').textContent = r.totais.responderam;
   $('kpiOptout').textContent = r.totais.optout;
+  $('kpiLigar').textContent = r.totais.a_ligar;
   $('txtAgenda').textContent = `Cada busca vira uma campanha. As que estão com "Agenda" ligada rodam sozinhas (${cronTexto(r.agenda_busca)}).`;
   if (r.google?.limite_mes) {
     $('txtAgenda').textContent += ` Google este mês: ${r.google.buscas_mes} de ${r.google.limite_mes} buscas grátis.`;
@@ -375,10 +403,95 @@ async function carregarAjustes() {
   }
 }
 
+/* ---------------------------------------------------------------------
+   LIGAÇÕES
+   --------------------------------------------------------------------- */
+let ligacoes = [];
+const ROTULO_LIGACAO = {
+  a_ligar:       ['A ligar', 'bg-amber-100 text-amber-800'],
+  nao_atendeu:   ['Não atendeu', 'bg-slate-100 text-slate-700'],
+  retornar:      ['Retornar', 'bg-blue-100 text-blue-800'],
+  interessado:   ['Interessado', 'bg-green-100 text-green-800'],
+  sem_interesse: ['Sem interesse', 'bg-slate-100 text-slate-400'],
+  numero_errado: ['Nº errado', 'bg-red-100 text-red-700']
+};
+const MOTIVO_LIGAR = { sem_whatsapp: 'Sem WhatsApp / fixo', sem_numero: 'Número fora do padrão', falha: 'WhatsApp falhou' };
+
+async function carregarLigacoes() {
+  ligacoes = await api('/ligacoes' + ($('chkLigTodas').checked ? '?mostrar=todas' : ''));
+  renderLigacoes();
+}
+
+function dataLocal(d) {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+function amanha() {
+  const d = new Date(); d.setDate(d.getDate() + 1);
+  return dataLocal(d);
+}
+
+function renderLigacoes() {
+  $('semLigacoes').classList.toggle('hidden', ligacoes.length > 0);
+  const hoje = dataLocal(new Date());
+  $('tbodyLigacoes').innerHTML = ligacoes.map(l => {
+    const [rotulo, cor] = ROTULO_LIGACAO[l.ligacao_status] || ROTULO_LIGACAO.a_ligar;
+    const retorno = l.retornar_em ? String(l.retornar_em).slice(0, 10) : '';
+    const vencido = retorno && retorno <= hoje;
+    const fechado = ['interessado', 'sem_interesse', 'numero_errado'].includes(l.ligacao_status);
+    const digitos = String(l.telefone).replace(/\D/g, '').replace(/^55(?=\d{10,11}$)/, '');
+    const btn = (res, txt, cls) => `<button type="button" data-lig="${res}" data-id="${l.id}" class="whitespace-nowrap rounded-lg px-2 py-1.5 text-xs font-medium ${cls}">${txt}</button>`;
+    return `
+      <tr class="${vencido ? 'bg-blue-50/60' : 'hover:bg-slate-50/70'} ${fechado ? 'opacity-60' : ''}">
+        <td class="max-w-xs px-5 py-3">
+          <p class="font-medium text-slate-900">${esc(l.nome)}</p>
+          <p class="truncate text-xs text-slate-500" title="${esc(l.endereco || '')}">${esc(l.endereco || '')}</p>
+          <p class="text-xs text-slate-400">${esc(l.nicho || '')}${l.site ? ` · <a href="${esc(l.site)}" target="_blank" rel="noopener" class="text-vesco-500 hover:underline">site</a>` : ''}</p>
+        </td>
+        <td class="px-5 py-3">
+          <a href="tel:+55${esc(digitos)}" class="whitespace-nowrap text-base font-semibold text-vesco-600 hover:underline">${esc(l.telefone)}</a>
+          <p class="text-xs text-slate-500">${esc(l.email || 'sem e-mail')}${l.email_status === 'enviado' ? ' · e-mail enviado' : ''}</p>
+        </td>
+        <td class="px-5 py-3">
+          <span class="inline-flex whitespace-nowrap rounded-full px-2.5 py-1 text-xs font-medium ${cor}">${rotulo}</span>
+          ${retorno ? `<span class="mt-1 block text-xs ${vencido ? 'font-semibold text-blue-700' : 'text-slate-500'}">Retornar ${retorno.split('-').reverse().join('/')}</span>` : ''}
+          <span class="mt-1 block text-xs text-slate-400">${MOTIVO_LIGAR[l.whatsapp_status] || ''}${l.ligacao_tentativas ? ` · ${l.ligacao_tentativas} tentativa(s)` : ''}</span>
+        </td>
+        <td class="px-5 py-3">
+          <input data-obs="${l.id}" value="${esc(l.ligacao_obs || '')}" placeholder="Falei com…, consome…" class="w-48 rounded-lg border border-slate-300 px-2 py-1.5 text-xs focus:border-vesco-500 focus:outline-none" />
+        </td>
+        <td class="px-5 py-3">
+          <div class="flex flex-wrap justify-end gap-1">
+            ${fechado ? btn('a_ligar', 'Reabrir', 'text-slate-600 hover:bg-slate-100') : `
+              ${btn('nao_atendeu', 'Não atendeu', 'border border-slate-300 bg-white text-slate-700 hover:bg-slate-50')}
+              <span class="flex items-center gap-1">
+                <input type="date" data-data="${l.id}" value="${retorno || amanha()}" class="rounded-lg border border-slate-300 px-1.5 py-1 text-xs" />
+                ${btn('retornar', 'Retornar', 'border border-blue-200 bg-blue-50 text-blue-700 hover:bg-blue-100')}
+              </span>
+              ${btn('interessado', 'Interessado', 'bg-zap-500 text-white hover:bg-zap-600')}
+              ${btn('sem_interesse', 'Sem interesse', 'text-slate-500 hover:bg-slate-100')}
+              ${btn('numero_errado', 'Nº errado', 'text-red-600 hover:bg-red-50')}`}
+          </div>
+        </td>
+      </tr>`;
+  }).join('');
+}
+
+async function registrarLigacao(id, resultado) {
+  const obs = document.querySelector(`input[data-obs="${id}"]`)?.value.trim();
+  const retornar_em = document.querySelector(`input[data-data="${id}"]`)?.value || null;
+  try {
+    await api(`/leads/${id}/ligacao`, { method: 'POST', body: { resultado, obs: obs || null, retornar_em } });
+    toast(`Ligação registrada: ${ROTULO_LIGACAO[resultado][0]}.`, 'ok');
+    await Promise.all([carregarLigacoes(), carregarResumo(), carregarLeads()]);
+  } catch (err) {
+    toast(err.message, 'erro');
+  }
+}
+
 async function atualizarTudo() {
   if (!conexao.url) return;
   try {
-    await Promise.all([carregarResumo(), carregarCampanhas(), carregarLeads()]);
+    await Promise.all([carregarResumo(), carregarCampanhas(), carregarLeads(), carregarLigacoes()]);
   } catch (err) {
     setConectado(false, err.message);
   }
@@ -657,6 +770,12 @@ async function acompanharBusca(id) {
     return;
   }
 }
+
+$('tbodyLigacoes').addEventListener('click', e => {
+  const b = e.target.closest('button[data-lig]');
+  if (b) registrarLigacao(Number(b.dataset.id), b.dataset.lig);
+});
+$('chkLigTodas').addEventListener('change', () => carregarLigacoes().catch(err => toast(err.message, 'erro')));
 
 $('tbodyLeads').addEventListener('click', e => {
   const b = e.target.closest('button[data-acao]');
