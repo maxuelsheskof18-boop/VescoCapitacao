@@ -60,7 +60,7 @@
         <span id="badgeConexao" class="hidden rounded-full px-2.5 py-1 text-xs font-medium sm:inline-flex"></span>
         <button id="btnConexao" type="button" class="flex items-center gap-2 rounded-lg border border-white/20 px-3 py-1.5 text-sm hover:bg-white/10">
           <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M13.8 10.2a4 4 0 00-5.6 0l-4 4a4 4 0 005.6 5.6l1.1-1.1m-.7-4.9a4 4 0 005.6 0l4-4a4 4 0 00-5.6-5.6l-1.1 1.1"/></svg>
-          Conexão
+          <span class="hidden sm:inline">Conexão</span>
         </button>
       </div>
     </div>
@@ -107,12 +107,12 @@
               <p id="txtEnvio" class="text-xs text-slate-500">—</p>
             </div>
           </div>
-          <div class="flex min-w-[260px] flex-1 flex-wrap items-center justify-end gap-x-6 gap-y-2">
-            <div class="w-44">
+          <div class="flex min-w-0 flex-1 flex-wrap items-center justify-end gap-x-6 gap-y-2">
+            <div class="w-full sm:w-44">
               <div class="mb-1 flex justify-between text-xs"><span class="font-medium text-slate-600">WhatsApp hoje</span><span id="txtZapHoje" class="text-slate-500 num">0/0</span></div>
               <div class="h-1.5 rounded-full bg-slate-100"><div id="barraZap" class="h-1.5 rounded-full transition-all" style="width:0%;background:var(--serie-whatsapp)"></div></div>
             </div>
-            <div class="w-44">
+            <div class="w-full sm:w-44">
               <div class="mb-1 flex justify-between text-xs"><span class="font-medium text-slate-600">E-mails hoje</span><span id="txtEmailHoje" class="text-slate-500 num">0/0</span></div>
               <div class="h-1.5 rounded-full bg-slate-100"><div id="barraEmail" class="h-1.5 rounded-full transition-all" style="width:0%;background:var(--serie-email)"></div></div>
             </div>
@@ -127,6 +127,22 @@
            ABA: PAINEL
            ================================================================= -->
       <div data-painel="painel" class="space-y-6">
+        <!-- Processo de envio -->
+        <section id="secProcesso" class="rounded-xl border border-slate-200 bg-white shadow-sm">
+          <div class="flex flex-wrap items-end justify-between gap-3 border-b border-slate-200 px-5 py-4">
+            <div>
+              <h2 class="font-semibold">Processo de envio</h2>
+              <p class="text-sm text-slate-500">Em que pé está cada canal. Clique numa categoria para ver os leads.</p>
+            </div>
+            <select id="procCampanha" class="w-full max-w-full rounded-lg border border-slate-300 px-3 py-2 text-sm sm:w-auto"><option value="">Todas as campanhas</option></select>
+          </div>
+          <div class="grid gap-px bg-slate-200 md:grid-cols-2">
+            <div id="procWhatsapp" class="bg-white p-5"></div>
+            <div id="procEmail" class="bg-white p-5"></div>
+          </div>
+          <div id="procLista" class="hidden border-t border-slate-200"></div>
+        </section>
+
         <section class="grid grid-cols-2 gap-3 lg:grid-cols-5">
           <div class="rounded-xl border border-slate-200 bg-white p-4">
             <p class="text-xs font-medium uppercase tracking-wide text-slate-500">Leads</p>
@@ -208,7 +224,7 @@
           <p id="semGrupos" class="hidden px-5 py-10 text-center text-sm text-slate-500">Ainda não há leads. Comece pela aba <b>Prospectar</b>.</p>
         </section>
 
-        <div class="grid gap-6 lg:grid-cols-2">
+        <div class="grid grid-cols-[minmax(0,1fr)] gap-6 lg:grid-cols-2">
         <!-- Últimos envios -->
         <section class="rounded-xl border border-slate-200 bg-white shadow-sm">
           <div class="border-b border-slate-200 px-5 py-4">
@@ -636,7 +652,121 @@ async function carregarResumo() {
 /* ---------------------------------------------------------------------
    ABA PAINEL
    --------------------------------------------------------------------- */
+/* ---------- Processo de envio ---------- */
+let processo = null;
+let procCampanha = '';
+let procAberto = null; // { canal, cat }
+
+const CAT_ENVIO = [
+  // chave, rótulo, cor da barra, status do lead por canal (para a lista)
+  ['enviado',     'Enviados',    '#16a34a', { whatsapp: 'enviado', email: 'enviado' }],
+  ['enviando',    'Enviando',    '#0ea5e9', { whatsapp: 'enviando', email: 'enviando' }],
+  ['fila',        'Na fila',     '#f59e0b', { whatsapp: 'fila', email: 'fila' }],
+  ['aguardando',  'Aguardando',  '#94a3b8', { whatsapp: 'pendente', email: 'pendente' }],
+  ['falha',       'Falhas',      '#dc2626', { whatsapp: 'falha', email: 'falha' }],
+  ['sem_contato', 'Sem contato', '#e2e8f0', { whatsapp: 'sem_numero,sem_whatsapp,duplicado', email: 'sem_email,duplicado' }]
+];
+
+async function carregarProcesso() {
+  if (!campanhas.length) await carregarCampanhas().catch(() => {});
+  processo = await api('/envios' + (procCampanha ? '?campanha_id=' + procCampanha : ''));
+  renderProcesso();
+  if (procAberto) carregarListaProcesso().catch(() => {});
+}
+
+function situacaoHtml(canal, x) {
+  const hora = iso => new Date(iso).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+  const retoma = `${processo.horario.inicio}h`;
+  const mapa = {
+    concluido:    ['Concluído', 'bg-green-100 text-green-800', x.total ? 'Todos os leads com contato já receberam.' : 'Nada para enviar por aqui.'],
+    enviando:     ['Enviando', 'bg-sky-100 text-sky-800', x.continua_amanha ? `Não termina hoje: continua amanhã às ${retoma}.` : x.previsao ? `Termina por volta das ${hora(x.previsao)}.` : ''],
+    pausado:      ['Pausado', 'bg-slate-200 text-slate-700', 'O envio automático está desligado (chave no topo).'],
+    fora_horario: ['Fora do horário', 'bg-slate-200 text-slate-700', `Retoma às ${retoma} no próximo dia útil.`],
+    limite:       ['Limite do dia', 'bg-amber-100 text-amber-800', `Já foram ${x.hoje} hoje. Continua amanhã às ${retoma}.`],
+    desconectado: ['Não conectado', 'bg-red-100 text-red-700', canal === 'whatsapp' ? 'Configure a Evolution API no Easypanel.' : 'Configure o SMTP no Easypanel.'],
+    aguardando:   ['Aguardando você', 'bg-amber-100 text-amber-800', 'Há leads fora da fila: ligue "Envio auto" na campanha ou use Enviar no Funil.']
+  };
+  const [rotulo, cor, texto] = mapa[x.situacao] || [x.situacao, 'bg-slate-100 text-slate-700', ''];
+  const icone = x.situacao === 'enviando'
+    ? '<svg class="spin h-3 w-3" fill="none" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-opacity=".3" stroke-width="3"/><path d="M21 12a9 9 0 00-9-9" stroke="currentColor" stroke-width="3" stroke-linecap="round"/></svg>'
+    : x.situacao === 'concluido' ? '✓' : '';
+  return { badge: `<span class="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-semibold ${cor}">${icone}${rotulo}</span>`, texto };
+}
+
+function renderProcesso() {
+  // opções do seletor de campanha
+  const sel = $('procCampanha');
+  sel.innerHTML = '<option value="">Todas as campanhas</option>' +
+    campanhas.map(c => `<option value="${c.id}">${esc(c.nicho)} · ${esc(c.regiao)}</option>`).join('');
+  sel.value = campanhas.some(c => String(c.id) === procCampanha) ? procCampanha : '';
+
+  for (const [canal, alvo, nome] of [['whatsapp', 'procWhatsapp', 'WhatsApp'], ['email', 'procEmail', 'E-mail']]) {
+    const x = processo[canal];
+    const c = x.categorias;
+    const comContato = x.total - c.sem_contato;
+    const { badge, texto } = situacaoHtml(canal, x);
+    const segmentos = CAT_ENVIO.filter(([k]) => c[k] > 0).map(([k, rot, cor]) =>
+      `<div title="${rot}: ${c[k]}" style="width:${(c[k] / Math.max(x.total, 1)) * 100}%;background:${cor}" class="h-full first:rounded-l-full last:rounded-r-full"></div>`).join('');
+    $(alvo).innerHTML = `
+      <div class="mb-3 flex flex-wrap items-center justify-between gap-2">
+        <h3 class="flex items-center gap-2 font-semibold ${canal === 'whatsapp' ? 'text-zap-600' : 'text-vesco-500'}">${nome}</h3>
+        ${badge}
+      </div>
+      <p class="mb-1 text-sm text-slate-700"><b class="text-2xl font-semibold text-slate-900 num">${fmt(c.enviado)}</b> de <b class="num">${fmt(comContato)}</b> com contato enviados${comContato ? ` <span class="text-slate-500">(${pct(c.enviado, comContato)})</span>` : ''}</p>
+      <p class="mb-3 min-h-[1.25rem] text-xs text-slate-500">${esc(texto)}${x.proximo && x.situacao === 'enviando' ? ` Próximo às ${new Date(x.proximo).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}.` : ''}</p>
+      <div class="mb-4 flex h-3 gap-0.5 overflow-hidden rounded-full bg-slate-100">${segmentos}</div>
+      <div class="grid grid-cols-3 gap-2">
+        ${CAT_ENVIO.map(([k, rot, cor]) => {
+          const aberto = procAberto?.canal === canal && procAberto?.cat === k;
+          return `<button type="button" data-proc-canal="${canal}" data-proc-cat="${k}" ${c[k] ? '' : 'disabled'}
+            class="rounded-lg border px-2.5 py-2 text-left transition disabled:cursor-default disabled:opacity-50 ${aberto ? 'border-vesco-500 bg-vesco-50' : 'border-slate-200 hover:border-slate-300 hover:bg-slate-50'}">
+            <span class="flex items-center gap-1.5 text-xs text-slate-600"><span class="inline-block h-2 w-2 rounded-full ring-1 ring-slate-300" style="background:${cor}"></span>${rot}</span>
+            <span class="block text-lg font-semibold text-slate-900 num">${fmt(c[k])}</span>
+          </button>`;
+        }).join('')}
+      </div>`;
+  }
+}
+
+async function carregarListaProcesso() {
+  const { canal, cat } = procAberto;
+  const def = CAT_ENVIO.find(([k]) => k === cat);
+  const p = new URLSearchParams({ limit: 200, [`${canal}_status`]: def[3][canal] });
+  if (procCampanha) p.set('campanha_id', procCampanha);
+  const r = await api('/leads?' + p);
+  const lista = cat === 'aguardando' ? r.leads.filter(l => (canal === 'whatsapp' ? l.whatsapp : l.email)) : r.leads;
+  const campoData = canal === 'whatsapp' ? 'whatsapp_enviado_em' : 'email_enviado_em';
+  const motivo = l => {
+    const st = canal === 'whatsapp' ? l.whatsapp_status : l.email_status;
+    return (ROTULO_CANAL[st] || [st])[0];
+  };
+  $('procLista').innerHTML = `
+    <div class="flex items-center justify-between bg-slate-50 px-5 py-3">
+      <p class="text-sm font-semibold text-slate-800">${canal === 'whatsapp' ? 'WhatsApp' : 'E-mail'} · ${def[1]} <span class="font-normal text-slate-500">(${fmt(r.total)})</span></p>
+      <button type="button" id="procFechar" class="rounded-lg px-2 py-1 text-xs text-slate-600 hover:bg-slate-200">Fechar</button>
+    </div>
+    <div class="max-h-96 overflow-auto">
+      <table class="w-full text-left text-sm">
+        <tbody class="divide-y divide-slate-100">
+          ${lista.map(l => `
+            <tr>
+              <td class="px-5 py-2"><p class="font-medium text-slate-900">${esc(l.nome)}</p><p class="text-xs text-slate-500">${esc(l.nicho || '')} · ${esc(l.regiao || '')}</p></td>
+              <td class="px-3 py-2 text-xs text-slate-600">${esc(canal === 'whatsapp' ? (l.telefone || '—') : (l.email || '—'))}</td>
+              <td class="px-5 py-2 text-right text-xs">
+                ${cat === 'enviado' ? `<span class="text-slate-600">${dataCurta(l[campoData])}</span>`
+                  : cat === 'falha' ? `<span class="text-red-600" title="${esc(l.ultimo_erro || '')}">${esc((l.ultimo_erro || 'Falhou').slice(0, 60))}</span>`
+                  : `<span class="text-slate-500">${esc(motivo(l))}</span>`}
+              </td>
+            </tr>`).join('') || '<tr><td class="px-5 py-6 text-center text-sm text-slate-500">Nenhum lead nesta categoria.</td></tr>'}
+        </tbody>
+      </table>
+    </div>
+    ${r.total > lista.length ? `<p class="px-5 py-2 text-xs text-slate-500">Mostrando ${lista.length} de ${r.total}. Veja todos na aba Funil.</p>` : ''}`;
+  $('procLista').classList.remove('hidden');
+}
+
 async function carregarPainel() {
+  carregarProcesso().catch(err => toast(err.message, 'erro'));
   painel = await api('/painel?dias=' + diasGrafico);
   renderPainel();
 }
@@ -898,6 +1028,7 @@ function renderCampanhas() {
         <td class="px-3 py-3">${chaveHtml(c.auto_envio, `data-camp="${c.id}" data-campo="auto_envio"`)}</td>
         <td class="px-5 py-3">
           <div class="flex justify-end gap-1">
+            <button type="button" data-acao-camp="acompanhar" data-id="${c.id}" class="rounded-lg px-2.5 py-1.5 text-xs font-medium text-sky-700 hover:bg-sky-50">Acompanhar</button>
             <button type="button" data-acao-camp="mensagens" data-id="${c.id}" class="rounded-lg px-2.5 py-1.5 text-xs font-medium text-violet-700 hover:bg-violet-50">Mensagens</button>
             <button type="button" data-acao-camp="rodar" data-id="${c.id}" ${c.executando ? 'disabled' : ''} class="rounded-lg px-2.5 py-1.5 text-xs font-medium text-vesco-600 hover:bg-vesco-50 disabled:opacity-40">Rodar agora</button>
             <button type="button" data-acao-camp="ver" data-id="${c.id}" class="rounded-lg px-2.5 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-100">Ver leads</button>
@@ -911,6 +1042,7 @@ function renderCampanhas() {
 async function acaoCampanha(acao, id) {
   try {
     if (acao === 'mensagens') return abrirModalCampanha(id);
+    if (acao === 'acompanhar') { procCampanha = String(id); procAberto = null; $('procLista').classList.add('hidden'); irPara('painel'); window.scrollTo({ top: 0, behavior: 'smooth' }); return; }
     if (acao === 'rodar') {
       await api(`/campanhas/${id}/executar`, { method: 'POST' });
       toast('Busca iniciada.', 'info');
@@ -1406,6 +1538,20 @@ $('chaveEnvio').addEventListener('click', async () => {
 });
 
 // Painel
+$('procCampanha').addEventListener('change', e => {
+  procCampanha = e.target.value; procAberto = null; $('procLista').classList.add('hidden');
+  carregarProcesso().catch(err => toast(err.message, 'erro'));
+});
+$('secProcesso').addEventListener('click', e => {
+  if (e.target.closest('#procFechar')) { procAberto = null; $('procLista').classList.add('hidden'); renderProcesso(); return; }
+  const b = e.target.closest('button[data-proc-cat]');
+  if (!b || b.disabled) return;
+  const novo = { canal: b.dataset.procCanal, cat: b.dataset.procCat };
+  procAberto = procAberto && procAberto.canal === novo.canal && procAberto.cat === novo.cat ? null : novo;
+  renderProcesso();
+  if (procAberto) carregarListaProcesso().catch(err => toast(err.message, 'erro'));
+  else $('procLista').classList.add('hidden');
+});
 $('seletorPeriodo').addEventListener('click', e => {
   const b = e.target.closest('button[data-dias]');
   if (!b) return;
