@@ -118,6 +118,8 @@
             </div>
           </div>
         </div>
+        <p id="txtFila" class="mt-3 text-xs text-slate-600"></p>
+        <div id="avisoAguardando" class="mt-3 hidden rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900"></div>
         <div id="avisos" class="mt-3 flex flex-wrap gap-2 empty:hidden"></div>
       </section>
 
@@ -206,6 +208,17 @@
           <p id="semGrupos" class="hidden px-5 py-10 text-center text-sm text-slate-500">Ainda não há leads. Comece pela aba <b>Prospectar</b>.</p>
         </section>
 
+        <div class="grid gap-6 lg:grid-cols-2">
+        <!-- Últimos envios -->
+        <section class="rounded-xl border border-slate-200 bg-white shadow-sm">
+          <div class="border-b border-slate-200 px-5 py-4">
+            <h2 class="font-semibold">Últimos envios</h2>
+            <p class="text-sm text-slate-500">O que o motor mandou por último. Atualiza sozinho a cada 20 segundos.</p>
+          </div>
+          <ul id="listaEnvios" class="divide-y divide-slate-100"></ul>
+          <p id="semEnvios" class="hidden px-5 py-10 text-center text-sm text-slate-500">Nenhum envio ainda.</p>
+        </section>
+
         <!-- Últimas respostas -->
         <section class="rounded-xl border border-slate-200 bg-white shadow-sm">
           <div class="border-b border-slate-200 px-5 py-4">
@@ -215,6 +228,7 @@
           <ul id="listaRespostas" class="divide-y divide-slate-100"></ul>
           <p id="semRespostas" class="hidden px-5 py-10 text-center text-sm text-slate-500">Nenhuma resposta ainda.</p>
         </section>
+        </div>
       </div>
 
       <!-- =================================================================
@@ -580,6 +594,21 @@ async function carregarResumo() {
   barra('barraZap', 'txtZapHoje', r.hoje.whatsapp, r.limites.whatsapp, r.totais.fila_whatsapp);
   barra('barraEmail', 'txtEmailHoje', r.hoje.email, r.limites.email, r.totais.fila_email);
 
+  const hora = iso => new Date(iso).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+  const partes = [`Na fila: <b class="num">${r.totais.fila_whatsapp}</b> WhatsApp · <b class="num">${r.totais.fila_email}</b> e-mail`];
+  if (r.envio_ativo && r.dentro_horario) {
+    if (r.proximos?.whatsapp) partes.push(`próximo WhatsApp às ${hora(r.proximos.whatsapp)}`);
+    else if (r.totais.fila_whatsapp) partes.push('próximo WhatsApp em instantes');
+    if (r.hoje.whatsapp >= r.limites.whatsapp) partes.push('limite diário de WhatsApp atingido, volta amanhã');
+  }
+  $('txtFila').innerHTML = partes.join(' · ');
+
+  const aguardando = r.totais.aguardando || 0;
+  $('avisoAguardando').classList.toggle('hidden', !aguardando);
+  $('avisoAguardando').innerHTML = aguardando
+    ? `<b>${aguardando} lead(s) aguardando fora da fila.</b> Eles só são enviados quando você liga <b>Envio auto</b> na campanha (aba Prospectar) ou clica em <b>Enviar</b> no Funil.`
+    : '';
+
   const avisos = [];
   if (!r.configurado.google) avisos.push('Busca bloqueada: falta chave do Google');
   if (!r.configurado.whatsapp) avisos.push('WhatsApp não conectado');
@@ -640,6 +669,7 @@ function renderPainel() {
   ]);
   renderGrupos();
   renderRespostas();
+  renderEnvios();
 }
 
 function renderFunil(etapas) {
@@ -704,6 +734,32 @@ function renderGrupos() {
           <td class="px-3 py-2"></td>
           <td class="px-5 py-2 text-right"><button type="button" data-ver-camp="${c.id}" class="rounded-lg px-2.5 py-1 font-medium text-vesco-600 hover:bg-vesco-50">Ver leads</button></td>
         </tr>`).join('') : ''}`;
+  }).join('');
+}
+
+const TIPO_ENVIO = {
+  whatsapp_enviado:   ['WhatsApp enviado', 'bg-green-100 text-green-700'],
+  email_enviado:      ['E-mail enviado', 'bg-blue-100 text-blue-700'],
+  whatsapp_falha:     ['WhatsApp falhou', 'bg-red-100 text-red-700'],
+  email_falha:        ['E-mail falhou', 'bg-red-100 text-red-700'],
+  whatsapp_sem_conta: ['Sem WhatsApp → Ligações', 'bg-amber-100 text-amber-800']
+};
+
+function renderEnvios() {
+  const e = painel.envios || [];
+  $('semEnvios').classList.toggle('hidden', e.length > 0);
+  $('listaEnvios').innerHTML = e.map(x => {
+    const [rotulo, cor] = TIPO_ENVIO[x.tipo] || [x.tipo, 'bg-slate-100 text-slate-700'];
+    const detalhe = x.detalhe?.erro || x.detalhe?.email || '';
+    return `
+      <li class="flex items-center gap-3 px-5 py-2.5">
+        <span class="shrink-0 rounded-full px-2 py-0.5 text-xs font-medium ${cor}">${rotulo}</span>
+        <div class="min-w-0 flex-1">
+          <p class="truncate text-sm text-slate-800">${esc(x.nome)}</p>
+          ${detalhe ? `<p class="truncate text-xs text-slate-500" title="${esc(detalhe)}">${esc(detalhe)}</p>` : ''}
+        </div>
+        <span class="shrink-0 text-xs text-slate-500">${tempoAtras(x.criado_em)}</span>
+      </li>`;
   }).join('');
 }
 
@@ -1397,7 +1453,10 @@ $('tbodyCampanhas').addEventListener('click', async e => {
   if (chave) {
     const ligada = chave.getAttribute('aria-checked') !== 'true';
     try {
-      await api(`/campanhas/${chave.dataset.camp}`, { method: 'PATCH', body: { [chave.dataset.campo]: ligada } });
+      const r = await api(`/campanhas/${chave.dataset.camp}`, { method: 'PATCH', body: { [chave.dataset.campo]: ligada } });
+      const n = (r.enfileirados?.whatsapp || 0) + (r.enfileirados?.email || 0);
+      if (r.enfileirados) toast(n ? `${r.enfileirados.whatsapp} WhatsApp e ${r.enfileirados.email} e-mail(s) entraram na fila.` : 'Envio automático ligado. Nenhum lead aguardando nesta campanha.', 'ok');
+      carregarResumo().catch(() => {});
       await carregarCampanhas();
     } catch (err) { toast(err.message, 'erro'); }
     return;
