@@ -21,6 +21,14 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
   <style>
+    :root {
+      /* Séries dos gráficos (paleta categórica validada: slots 1–3) */
+      --serie-email: #2a78d6;
+      --serie-respostas: #eb6834;
+      --serie-whatsapp: #1baf7a;
+      --grade: #e7e5e4;
+      --eixo: #a8a29e;
+    }
     .spin { animation: spin .8s linear infinite; }
     @keyframes spin { to { transform: rotate(360deg); } }
     .toast-enter { animation: toastIn .2s ease-out; }
@@ -31,276 +39,453 @@
     .chave-sm { width: 34px; height: 20px; }
     .chave-sm::after { width: 14px; height: 14px; }
     .chave-sm[aria-checked="true"]::after { transform: translateX(14px); }
+    .aba[aria-selected="true"] { color: #fff; border-color: #60a5fa; }
+    .tabela td, .tabela th { white-space: nowrap; }
+    .num { font-variant-numeric: tabular-nums; }
   </style>
 </head>
 <body class="bg-slate-50 font-sans text-slate-800 antialiased">
 
-  <!-- ============ CABEÇALHO ============ -->
-  <header class="bg-vesco-900 text-white">
-    <div class="mx-auto flex max-w-7xl items-center justify-between gap-3 px-4 py-4">
+  <!-- ============ CABEÇALHO + ABAS ============ -->
+  <header class="sticky top-0 z-30 bg-vesco-900 text-white shadow">
+    <div class="mx-auto flex max-w-7xl items-center justify-between gap-3 px-4 pt-3">
       <div class="flex items-center gap-3">
         <div class="flex h-9 w-9 items-center justify-center rounded-lg bg-vesco-500 font-bold">V</div>
         <div>
-          <h1 class="text-lg font-semibold leading-tight">Máquina de Leads</h1>
-          <p class="text-xs text-blue-200">Vesco · Prospecção B2B · Grande São Paulo</p>
+          <h1 class="text-base font-semibold leading-tight">Máquina de Leads</h1>
+          <p class="text-xs text-blue-200">Vesco · Prospecção B2B</p>
         </div>
       </div>
       <div class="flex items-center gap-2">
         <span id="badgeConexao" class="hidden rounded-full px-2.5 py-1 text-xs font-medium sm:inline-flex"></span>
-        <button id="btnConexao" type="button" class="flex items-center gap-2 rounded-lg border border-white/20 px-3 py-2 text-sm hover:bg-white/10">
+        <button id="btnConexao" type="button" class="flex items-center gap-2 rounded-lg border border-white/20 px-3 py-1.5 text-sm hover:bg-white/10">
           <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M13.8 10.2a4 4 0 00-5.6 0l-4 4a4 4 0 005.6 5.6l1.1-1.1m-.7-4.9a4 4 0 005.6 0l4-4a4 4 0 00-5.6-5.6l-1.1 1.1"/></svg>
           Conexão
         </button>
       </div>
     </div>
+    <nav id="abas" class="mx-auto flex max-w-7xl gap-1 overflow-x-auto px-4 pt-2 text-sm" role="tablist">
+      <button class="aba border-b-2 border-transparent px-3 py-2.5 font-medium text-blue-200 hover:text-white" data-aba="painel" role="tab">Painel</button>
+      <button class="aba border-b-2 border-transparent px-3 py-2.5 font-medium text-blue-200 hover:text-white" data-aba="prospectar" role="tab">Prospectar</button>
+      <button class="aba border-b-2 border-transparent px-3 py-2.5 font-medium text-blue-200 hover:text-white" data-aba="funil" role="tab">Funil</button>
+      <button class="aba flex items-center gap-2 border-b-2 border-transparent px-3 py-2.5 font-medium text-blue-200 hover:text-white" data-aba="ligacoes" role="tab">
+        Ligações <span id="badgeLigar" class="hidden rounded-full bg-amber-400 px-1.5 text-xs font-semibold text-amber-950 num"></span>
+      </button>
+      <button class="aba border-b-2 border-transparent px-3 py-2.5 font-medium text-blue-200 hover:text-white" data-aba="mensagens" role="tab">Mensagens</button>
+    </nav>
   </header>
 
   <main class="mx-auto max-w-7xl space-y-6 px-4 py-6">
 
-    <!-- ============ CONEXÃO COM O MOTOR ============ -->
+    <!-- ============ CONEXÃO ============ -->
     <section id="painelConexao" class="hidden rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
       <h2 class="font-semibold">Conexão com o motor</h2>
-      <p class="mb-4 text-sm text-slate-500">O motor roda no Easypanel. Cole o endereço dele e o <code>API_TOKEN</code> configurado lá. Fica salvo só neste navegador.</p>
+      <p class="mb-4 text-sm text-slate-500">O motor roda no Easypanel. Cole o endereço dele e o <code>API_TOKEN</code>. Fica salvo só neste navegador.</p>
       <form id="formConexao" class="grid gap-4 md:grid-cols-[1fr_1fr_auto] md:items-end">
-        <label class="block">
-          <span class="text-sm font-medium text-slate-700">Endereço do motor</span>
-          <input id="cfgUrl" type="url" required placeholder="https://leads-motor.seudominio.com.br" class="campo mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-vesco-500 focus:outline-none focus:ring-2 focus:ring-vesco-100" />
-        </label>
-        <label class="block">
-          <span class="text-sm font-medium text-slate-700">Token de acesso</span>
-          <input id="cfgToken" type="password" required autocomplete="off" class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-vesco-500 focus:outline-none focus:ring-2 focus:ring-vesco-100" />
-        </label>
+        <label class="block"><span class="text-sm font-medium text-slate-700">Endereço do motor</span>
+          <input id="cfgUrl" type="url" required placeholder="https://leads-motor.seudominio.com.br" class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-vesco-500 focus:outline-none focus:ring-2 focus:ring-vesco-100" /></label>
+        <label class="block"><span class="text-sm font-medium text-slate-700">Token de acesso</span>
+          <input id="cfgToken" type="password" required autocomplete="off" class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-vesco-500 focus:outline-none focus:ring-2 focus:ring-vesco-100" /></label>
         <button type="submit" class="rounded-lg bg-vesco-500 px-5 py-2 text-sm font-medium text-white hover:bg-vesco-600">Conectar</button>
       </form>
     </section>
 
-    <!-- ============ PRIMEIRO ACESSO ============ -->
     <section id="semConexao" class="hidden rounded-xl border border-dashed border-slate-300 bg-white px-5 py-14 text-center">
       <p class="font-medium text-slate-700">Conecte a tela ao motor</p>
-      <p class="text-sm text-slate-500">Clique em <b>Conexão</b> no topo e informe o endereço e o token do motor no Easypanel.</p>
+      <p class="text-sm text-slate-500">Clique em <b>Conexão</b> no topo e informe o endereço e o token do motor.</p>
     </section>
 
     <div id="app" class="hidden space-y-6">
 
-      <!-- ============ CONTROLE DO ENVIO AUTOMÁTICO ============ -->
-      <section class="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+      <!-- ============ STATUS DO MOTOR (sempre visível) ============ -->
+      <section class="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
         <div class="flex flex-wrap items-center justify-between gap-4">
           <div class="flex items-center gap-4">
             <button id="chaveEnvio" type="button" role="switch" aria-checked="false" class="chave bg-slate-300" aria-label="Envio automático"></button>
             <div>
-              <p class="font-semibold">Envio automático</p>
-              <p id="txtEnvio" class="text-sm text-slate-500">—</p>
+              <p class="text-sm font-semibold">Envio automático</p>
+              <p id="txtEnvio" class="text-xs text-slate-500">—</p>
             </div>
           </div>
-          <div id="avisosSimulado" class="flex flex-wrap gap-2"></div>
-        </div>
-        <div class="mt-5 grid gap-4 md:grid-cols-2">
-          <div>
-            <div class="mb-1 flex justify-between text-sm"><span class="font-medium text-slate-700">WhatsApp hoje</span><span id="txtZapHoje" class="text-slate-500">0 / 0 · fila 0</span></div>
-            <div class="h-2 rounded-full bg-slate-100"><div id="barraZap" class="h-2 rounded-full bg-zap-500 transition-all" style="width:0%"></div></div>
+          <div class="flex min-w-[260px] flex-1 flex-wrap items-center justify-end gap-x-6 gap-y-2">
+            <div class="w-44">
+              <div class="mb-1 flex justify-between text-xs"><span class="font-medium text-slate-600">WhatsApp hoje</span><span id="txtZapHoje" class="text-slate-500 num">0/0</span></div>
+              <div class="h-1.5 rounded-full bg-slate-100"><div id="barraZap" class="h-1.5 rounded-full transition-all" style="width:0%;background:var(--serie-whatsapp)"></div></div>
+            </div>
+            <div class="w-44">
+              <div class="mb-1 flex justify-between text-xs"><span class="font-medium text-slate-600">E-mails hoje</span><span id="txtEmailHoje" class="text-slate-500 num">0/0</span></div>
+              <div class="h-1.5 rounded-full bg-slate-100"><div id="barraEmail" class="h-1.5 rounded-full transition-all" style="width:0%;background:var(--serie-email)"></div></div>
+            </div>
           </div>
-          <div>
-            <div class="mb-1 flex justify-between text-sm"><span class="font-medium text-slate-700">E-mails hoje</span><span id="txtEmailHoje" class="text-slate-500">0 / 0 · fila 0</span></div>
-            <div class="h-2 rounded-full bg-slate-100"><div id="barraEmail" class="h-2 rounded-full bg-vesco-500 transition-all" style="width:0%"></div></div>
-          </div>
         </div>
+        <div id="avisos" class="mt-3 flex flex-wrap gap-2 empty:hidden"></div>
       </section>
 
-      <!-- ============ INDICADORES ============ -->
-      <section class="grid grid-cols-2 gap-3 md:grid-cols-5">
-        <div class="rounded-xl border border-slate-200 bg-white p-4"><p class="text-xs font-medium uppercase tracking-wide text-slate-500">Leads no funil</p><p id="kpiLeads" class="mt-1 text-2xl font-semibold">0</p></div>
-        <div class="rounded-xl border border-slate-200 bg-white p-4"><p class="text-xs font-medium uppercase tracking-wide text-slate-500">Contatados</p><p id="kpiContatados" class="mt-1 text-2xl font-semibold text-vesco-500">0</p></div>
-        <div class="rounded-xl border border-slate-200 bg-white p-4"><p class="text-xs font-medium uppercase tracking-wide text-slate-500">Responderam</p><p id="kpiResponderam" class="mt-1 text-2xl font-semibold text-zap-600">0</p></div>
-        <div class="rounded-xl border border-slate-200 bg-white p-4"><p class="text-xs font-medium uppercase tracking-wide text-slate-500">Descadastrados</p><p id="kpiOptout" class="mt-1 text-2xl font-semibold text-slate-500">0</p></div>
-        <a href="#secLigacoes" class="rounded-xl border border-amber-200 bg-amber-50 p-4 hover:bg-amber-100"><p class="text-xs font-medium uppercase tracking-wide text-amber-700">A ligar</p><p id="kpiLigar" class="mt-1 text-2xl font-semibold text-amber-700">0</p></a>
-      </section>
-
-      <!-- ============ MOTOR DE BUSCA ============ -->
-      <section class="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-        <form id="formBusca" class="grid gap-4 md:grid-cols-[1fr_1fr_auto] md:items-end">
-          <label class="block">
-            <span class="text-sm font-medium text-slate-700">Nicho / Categoria</span>
-            <input id="inpNicho" type="text" required placeholder="Ex: Condomínio Residencial" class="mt-1 w-full rounded-lg border border-slate-300 px-4 py-3 focus:border-vesco-500 focus:outline-none focus:ring-2 focus:ring-vesco-100" />
-          </label>
-          <label class="block">
-            <span class="text-sm font-medium text-slate-700">Região</span>
-            <input id="inpRegiao" type="text" required placeholder="Ex: Vila Mariana, São Paulo" class="mt-1 w-full rounded-lg border border-slate-300 px-4 py-3 focus:border-vesco-500 focus:outline-none focus:ring-2 focus:ring-vesco-100" />
-          </label>
-          <button id="btnRastrear" type="submit" class="flex items-center justify-center gap-2 rounded-lg bg-vesco-500 px-8 py-3 text-base font-semibold text-white shadow-sm transition hover:bg-vesco-600 focus:outline-none focus:ring-4 focus:ring-vesco-100 disabled:cursor-wait disabled:opacity-70">
-            <svg class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path stroke-linecap="round" d="M20 20l-3.5-3.5"/></svg>
-            Rastrear Leads
+      <!-- =================================================================
+           ABA: PAINEL
+           ================================================================= -->
+      <div data-painel="painel" class="space-y-6">
+        <section class="grid grid-cols-2 gap-3 lg:grid-cols-5">
+          <div class="rounded-xl border border-slate-200 bg-white p-4">
+            <p class="text-xs font-medium uppercase tracking-wide text-slate-500">Leads</p>
+            <p id="kpiLeads" class="mt-1 text-3xl font-semibold num">0</p>
+            <p id="kpiLeadsSub" class="text-xs text-slate-500">&nbsp;</p>
+          </div>
+          <div class="rounded-xl border border-slate-200 bg-white p-4">
+            <p class="text-xs font-medium uppercase tracking-wide text-slate-500">Contatados</p>
+            <p id="kpiContatados" class="mt-1 text-3xl font-semibold num">0</p>
+            <p id="kpiContatadosSub" class="text-xs text-slate-500">&nbsp;</p>
+          </div>
+          <div class="rounded-xl border border-slate-200 bg-white p-4">
+            <p class="text-xs font-medium uppercase tracking-wide text-slate-500">Responderam</p>
+            <p id="kpiResponderam" class="mt-1 text-3xl font-semibold num">0</p>
+            <p id="kpiResponderamSub" class="text-xs text-slate-500">&nbsp;</p>
+          </div>
+          <div class="rounded-xl border border-slate-200 bg-white p-4">
+            <p class="text-xs font-medium uppercase tracking-wide text-slate-500">Interessados (ligação)</p>
+            <p id="kpiInteressados" class="mt-1 text-3xl font-semibold num">0</p>
+            <p class="text-xs text-slate-500">marcados na aba Ligações</p>
+          </div>
+          <button type="button" data-ir="ligacoes" class="rounded-xl border border-amber-200 bg-amber-50 p-4 text-left hover:bg-amber-100">
+            <p class="text-xs font-medium uppercase tracking-wide text-amber-800">A ligar</p>
+            <p id="kpiLigar" class="mt-1 text-3xl font-semibold text-amber-900 num">0</p>
+            <p class="text-xs text-amber-800">sem WhatsApp · abrir lista →</p>
           </button>
-        </form>
-        <div class="mt-4 flex flex-wrap items-center gap-x-6 gap-y-2 text-sm">
-          <label class="flex items-center gap-2"><input id="chkAuto" type="checkbox" checked class="h-4 w-4 rounded border-slate-300 text-vesco-500" /> Enviar apresentação automaticamente</label>
-          <label class="flex items-center gap-2"><input id="chkAgenda" type="checkbox" checked class="h-4 w-4 rounded border-slate-300 text-vesco-500" /> Repetir na busca agendada</label>
-          <span class="flex flex-wrap items-center gap-2 text-xs">
+        </section>
+
+        <section class="grid gap-6 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
+          <!-- Atividade -->
+          <div class="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+            <div class="mb-3 flex flex-wrap items-start justify-between gap-3">
+              <div>
+                <h2 class="font-semibold">Atividade por dia</h2>
+                <p class="text-sm text-slate-500">Mensagens enviadas e respostas recebidas</p>
+              </div>
+              <div class="flex rounded-lg border border-slate-200 p-0.5 text-xs" id="seletorPeriodo">
+                <button data-dias="7" class="rounded-md px-2.5 py-1 font-medium">7 dias</button>
+                <button data-dias="30" class="rounded-md px-2.5 py-1 font-medium">30 dias</button>
+                <button data-dias="90" class="rounded-md px-2.5 py-1 font-medium">90 dias</button>
+              </div>
+            </div>
+            <div id="legendaAtividade" class="mb-2 flex flex-wrap gap-4 text-xs text-slate-600"></div>
+            <div id="graficoAtividade" class="relative h-64"></div>
+          </div>
+
+          <!-- Funil -->
+          <div class="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+            <h2 class="font-semibold">Funil de conversão</h2>
+            <p class="mb-4 text-sm text-slate-500">De todos os leads até o interesse</p>
+            <div id="funilConversao" class="space-y-3"></div>
+          </div>
+        </section>
+
+        <!-- Por grupo -->
+        <section class="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
+          <div class="border-b border-slate-200 px-5 py-4">
+            <h2 class="font-semibold">Desempenho por grupo</h2>
+            <p class="text-sm text-slate-500">Cada nicho prospectado. Clique num grupo para ver as campanhas dele.</p>
+          </div>
+          <div class="overflow-x-auto">
+            <table class="tabela w-full text-left text-sm">
+              <thead class="bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
+                <tr>
+                  <th class="px-5 py-3 font-medium">Grupo</th>
+                  <th class="px-3 py-3 text-right font-medium">Leads</th>
+                  <th class="px-3 py-3 text-right font-medium">WhatsApp</th>
+                  <th class="px-3 py-3 text-right font-medium">E-mail</th>
+                  <th class="px-3 py-3 text-right font-medium">Responderam</th>
+                  <th class="px-3 py-3 font-medium">Taxa de resposta</th>
+                  <th class="px-3 py-3 text-right font-medium">Na fila</th>
+                  <th class="px-3 py-3 text-right font-medium">A ligar</th>
+                  <th class="px-5 py-3"></th>
+                </tr>
+              </thead>
+              <tbody id="tbodyGrupos" class="divide-y divide-slate-100"></tbody>
+            </table>
+          </div>
+          <p id="semGrupos" class="hidden px-5 py-10 text-center text-sm text-slate-500">Ainda não há leads. Comece pela aba <b>Prospectar</b>.</p>
+        </section>
+
+        <!-- Últimas respostas -->
+        <section class="rounded-xl border border-slate-200 bg-white shadow-sm">
+          <div class="border-b border-slate-200 px-5 py-4">
+            <h2 class="font-semibold">Últimas respostas</h2>
+            <p class="text-sm text-slate-500">Quem respondeu no WhatsApp ou se mostrou interessado na ligação. Assuma a conversa.</p>
+          </div>
+          <ul id="listaRespostas" class="divide-y divide-slate-100"></ul>
+          <p id="semRespostas" class="hidden px-5 py-10 text-center text-sm text-slate-500">Nenhuma resposta ainda.</p>
+        </section>
+      </div>
+
+      <!-- =================================================================
+           ABA: PROSPECTAR
+           ================================================================= -->
+      <div data-painel="prospectar" class="hidden space-y-6">
+        <section class="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+          <h2 class="mb-3 font-semibold">Nova busca</h2>
+          <form id="formBusca" class="grid gap-4 md:grid-cols-[1fr_1fr_auto] md:items-end">
+            <label class="block"><span class="text-sm font-medium text-slate-700">Nicho / Categoria</span>
+              <input id="inpNicho" type="text" required placeholder="Ex: Adega" class="mt-1 w-full rounded-lg border border-slate-300 px-4 py-3 focus:border-vesco-500 focus:outline-none focus:ring-2 focus:ring-vesco-100" /></label>
+            <label class="block"><span class="text-sm font-medium text-slate-700">Região</span>
+              <input id="inpRegiao" type="text" required placeholder="Ex: Pinheiros, São Paulo" class="mt-1 w-full rounded-lg border border-slate-300 px-4 py-3 focus:border-vesco-500 focus:outline-none focus:ring-2 focus:ring-vesco-100" /></label>
+            <button id="btnRastrear" type="submit" class="flex items-center justify-center gap-2 rounded-lg bg-vesco-500 px-8 py-3 text-base font-semibold text-white shadow-sm transition hover:bg-vesco-600 focus:outline-none focus:ring-4 focus:ring-vesco-100 disabled:cursor-wait disabled:opacity-70">
+              <svg class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path stroke-linecap="round" d="M20 20l-3.5-3.5"/></svg>
+              Rastrear Leads
+            </button>
+          </form>
+          <div class="mt-4 flex flex-wrap items-center gap-x-6 gap-y-2 text-sm">
+            <label id="lblIA" class="flex items-center gap-2"><input id="chkIA" type="checkbox" checked class="h-4 w-4 rounded border-slate-300" /> <span>Criar mensagem com IA para este nicho</span></label>
+            <label class="flex items-center gap-2"><input id="chkAuto" type="checkbox" class="h-4 w-4 rounded border-slate-300" /> Enviar automaticamente</label>
+            <label class="flex items-center gap-2"><input id="chkAgenda" type="checkbox" checked class="h-4 w-4 rounded border-slate-300" /> Repetir na busca agendada</label>
+          </div>
+          <div class="mt-3 flex flex-wrap items-center gap-2 text-xs">
             <span class="text-slate-500">Atalhos:</span>
             <button type="button" data-nicho="Condomínio Residencial" class="atalho rounded-full bg-slate-100 px-2.5 py-1 text-slate-600 hover:bg-vesco-50 hover:text-vesco-600">Condomínios</button>
+            <button type="button" data-nicho="Adega" class="atalho rounded-full bg-slate-100 px-2.5 py-1 text-slate-600 hover:bg-vesco-50 hover:text-vesco-600">Adegas</button>
             <button type="button" data-nicho="Restaurante" class="atalho rounded-full bg-slate-100 px-2.5 py-1 text-slate-600 hover:bg-vesco-50 hover:text-vesco-600">Restaurantes</button>
             <button type="button" data-nicho="Clínica Médica" class="atalho rounded-full bg-slate-100 px-2.5 py-1 text-slate-600 hover:bg-vesco-50 hover:text-vesco-600">Clínicas</button>
             <button type="button" data-nicho="Escola Particular" class="atalho rounded-full bg-slate-100 px-2.5 py-1 text-slate-600 hover:bg-vesco-50 hover:text-vesco-600">Escolas</button>
-          </span>
-        </div>
-      </section>
-
-      <!-- ============ CAMPANHAS ============ -->
-      <section class="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
-        <div class="border-b border-slate-200 px-5 py-4">
-          <h2 class="font-semibold">Campanhas</h2>
-          <p id="txtAgenda" class="text-sm text-slate-500">Cada busca vira uma campanha que o motor repete sozinho.</p>
-        </div>
-        <div class="overflow-x-auto">
-          <table class="w-full text-left text-sm">
-            <thead class="bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
-              <tr>
-                <th class="px-5 py-3 font-medium">Busca</th>
-                <th class="px-5 py-3 font-medium">Última execução</th>
-                <th class="px-5 py-3 font-medium">Agenda</th>
-                <th class="px-5 py-3 font-medium">Envio auto</th>
-                <th class="px-5 py-3 text-right font-medium">Ações</th>
-              </tr>
-            </thead>
-            <tbody id="tbodyCampanhas" class="divide-y divide-slate-100"></tbody>
-          </table>
-        </div>
-        <p id="semCampanhas" class="px-5 py-8 text-center text-sm text-slate-500">Nenhuma campanha ainda. Faça a primeira busca acima.</p>
-      </section>
-
-      <!-- ============ LIGAÇÕES ============ -->
-      <section id="secLigacoes" class="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
-        <div class="flex flex-wrap items-end justify-between gap-3 border-b border-slate-200 px-5 py-4">
-          <div>
-            <h2 class="font-semibold">Ligações</h2>
-            <p class="text-sm text-slate-500">Leads com telefone que não dá para alcançar pelo WhatsApp (fixo, sem conta ou falha). Retornos vencidos aparecem primeiro.</p>
+            <button type="button" data-nicho="Academia" class="atalho rounded-full bg-slate-100 px-2.5 py-1 text-slate-600 hover:bg-vesco-50 hover:text-vesco-600">Academias</button>
           </div>
-          <label class="flex items-center gap-2 text-sm text-slate-600"><input id="chkLigTodas" type="checkbox" class="h-4 w-4 rounded border-slate-300" /> Mostrar finalizadas</label>
-        </div>
-        <div class="overflow-x-auto">
-          <table class="w-full text-left text-sm">
-            <thead class="bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
-              <tr>
-                <th class="px-5 py-3 font-medium">Empresa</th>
-                <th class="px-5 py-3 font-medium">Telefone</th>
-                <th class="px-5 py-3 font-medium">Situação</th>
-                <th class="px-5 py-3 font-medium">Observação</th>
-                <th class="px-5 py-3 text-right font-medium">Resultado da ligação</th>
-              </tr>
-            </thead>
-            <tbody id="tbodyLigacoes" class="divide-y divide-slate-100"></tbody>
-          </table>
-        </div>
-        <p id="semLigacoes" class="hidden px-5 py-10 text-center text-sm text-slate-500">Nenhuma ligação pendente.</p>
-      </section>
+        </section>
 
-      <!-- ============ FUNIL ============ -->
-      <section class="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
-        <div class="flex flex-wrap items-end justify-between gap-3 border-b border-slate-200 px-5 py-4">
-          <div>
-            <h2 class="font-semibold">Funil de Prospecção</h2>
-            <p id="txtResumoFunil" class="text-sm text-slate-500">—</p>
+        <section class="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
+          <div class="border-b border-slate-200 px-5 py-4">
+            <h2 class="font-semibold">Campanhas</h2>
+            <p id="txtAgenda" class="text-sm text-slate-500">—</p>
           </div>
-          <div class="flex flex-wrap items-center gap-2">
-            <input id="filtroBusca" type="search" placeholder="Buscar empresa, e-mail, tel." class="w-48 rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-vesco-500 focus:outline-none" />
-            <select id="filtroCampanha" class="rounded-lg border border-slate-300 px-3 py-2 text-sm"><option value="">Todas as campanhas</option></select>
-            <select id="filtroStatus" class="rounded-lg border border-slate-300 px-3 py-2 text-sm">
-              <option value="">Todos os status</option>
-              <option value="NOVO">Novo</option>
-              <option value="CONTATADO">Contatado</option>
-              <option value="RESPONDEU">Respondeu</option>
-              <option value="DESCARTADO">Descartado</option>
-              <option value="OPTOUT">Descadastrado</option>
-            </select>
-            <button id="btnCsv" type="button" class="flex items-center gap-1.5 rounded-lg border border-slate-300 px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50">
-              <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4v12m0 0l-4-4m4 4l4-4M4 20h16"/></svg>
-              CSV
-            </button>
+          <div class="overflow-x-auto">
+            <table class="tabela w-full text-left text-sm">
+              <thead class="bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
+                <tr>
+                  <th class="px-5 py-3 font-medium">Busca</th>
+                  <th class="px-3 py-3 font-medium">Mensagem</th>
+                  <th class="px-3 py-3 font-medium">Última execução</th>
+                  <th class="px-3 py-3 font-medium">Agenda</th>
+                  <th class="px-3 py-3 font-medium">Envio auto</th>
+                  <th class="px-5 py-3 text-right font-medium">Ações</th>
+                </tr>
+              </thead>
+              <tbody id="tbodyCampanhas" class="divide-y divide-slate-100"></tbody>
+            </table>
           </div>
-        </div>
-        <div class="overflow-x-auto">
-          <table class="w-full text-left text-sm">
-            <thead class="bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
-              <tr>
-                <th class="px-5 py-3 font-medium">Empresa</th>
-                <th class="px-5 py-3 font-medium">Contato</th>
-                <th class="px-5 py-3 font-medium">WhatsApp</th>
-                <th class="px-5 py-3 font-medium">E-mail</th>
-                <th class="px-5 py-3 font-medium">Status</th>
-                <th class="px-5 py-3 text-right font-medium">Ações</th>
-              </tr>
-            </thead>
-            <tbody id="tbodyLeads" class="divide-y divide-slate-100"></tbody>
-          </table>
-        </div>
-        <p id="semLeads" class="hidden px-5 py-12 text-center text-sm text-slate-500">Nenhum lead com esses filtros.</p>
-      </section>
+          <p id="semCampanhas" class="px-5 py-8 text-center text-sm text-slate-500">Nenhuma campanha ainda. Faça a primeira busca acima.</p>
+        </section>
+      </div>
 
-      <!-- ============ MENSAGENS ============ -->
-      <section class="rounded-xl border border-slate-200 bg-white shadow-sm">
-        <button id="btnMensagens" type="button" class="flex w-full items-center justify-between px-5 py-4 text-left">
-          <span>
-            <span class="block font-semibold">Mensagens</span>
-            <span class="text-sm text-slate-500">O que o motor envia. Variáveis: <code>{empresa}</code>, <code>{nicho}</code>, <code>{regiao}</code>.</span>
-          </span>
-          <svg id="setaMensagens" class="h-5 w-5 text-slate-400 transition" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M6 9l6 6 6-6"/></svg>
-        </button>
-        <form id="formMensagens" class="hidden space-y-4 border-t border-slate-200 p-5">
-          <div class="grid gap-4 md:grid-cols-2">
-            <div class="space-y-4">
-              <h3 class="text-sm font-semibold text-zap-600">WhatsApp</h3>
-              <label class="block"><span class="text-sm font-medium text-slate-700">Mensagem</span>
-                <textarea name="msg_whatsapp" rows="4" class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-vesco-500 focus:outline-none"></textarea></label>
-              <label class="block"><span class="text-sm font-medium text-slate-700">Rodapé (descadastro)</span>
-                <input name="msg_whatsapp_rodape" class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-vesco-500 focus:outline-none" /></label>
-              <label class="flex items-center gap-2 text-sm"><input name="whatsapp_enviar_apresentacao" type="checkbox" class="h-4 w-4 rounded border-slate-300" /> Enviar o PDF da apresentação logo depois</label>
-              <label class="block"><span class="text-sm font-medium text-slate-700">Legenda do PDF</span>
-                <input name="legenda_apresentacao" class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-vesco-500 focus:outline-none" /></label>
+      <!-- =================================================================
+           ABA: FUNIL
+           ================================================================= -->
+      <div data-painel="funil" class="hidden">
+        <section class="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
+          <div class="flex flex-wrap items-end justify-between gap-3 border-b border-slate-200 px-5 py-4">
+            <div>
+              <h2 class="font-semibold">Funil de prospecção</h2>
+              <p id="txtResumoFunil" class="text-sm text-slate-500">—</p>
             </div>
-            <div class="space-y-4">
-              <h3 class="text-sm font-semibold text-vesco-500">E-mail</h3>
-              <label class="block"><span class="text-sm font-medium text-slate-700">Assunto</span>
-                <input name="email_assunto" class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-vesco-500 focus:outline-none" /></label>
-              <label class="block"><span class="text-sm font-medium text-slate-700">Corpo</span>
-                <textarea name="email_corpo" rows="9" class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-vesco-500 focus:outline-none"></textarea></label>
+            <div class="flex flex-wrap items-center gap-2">
+              <input id="filtroBusca" type="search" placeholder="Buscar empresa, e-mail, tel." class="w-48 rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-vesco-500 focus:outline-none" />
+              <select id="filtroNicho" class="rounded-lg border border-slate-300 px-3 py-2 text-sm"><option value="">Todos os grupos</option></select>
+              <select id="filtroCampanha" class="rounded-lg border border-slate-300 px-3 py-2 text-sm"><option value="">Todas as campanhas</option></select>
+              <select id="filtroStatus" class="rounded-lg border border-slate-300 px-3 py-2 text-sm">
+                <option value="">Todos os status</option>
+                <option value="NOVO">Novo</option>
+                <option value="CONTATADO">Contatado</option>
+                <option value="RESPONDEU">Respondeu</option>
+                <option value="DESCARTADO">Descartado</option>
+                <option value="OPTOUT">Descadastrado</option>
+              </select>
+              <button id="btnCsv" type="button" class="flex items-center gap-1.5 rounded-lg border border-slate-300 px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50">
+                <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4v12m0 0l-4-4m4 4l4-4M4 20h16"/></svg>
+                CSV
+              </button>
             </div>
           </div>
-          <div class="flex justify-end">
-            <button type="submit" class="rounded-lg bg-vesco-500 px-5 py-2 text-sm font-medium text-white hover:bg-vesco-600">Salvar mensagens</button>
+          <div class="overflow-x-auto">
+            <table class="w-full text-left text-sm">
+              <thead class="bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
+                <tr>
+                  <th class="px-5 py-3 font-medium">Empresa</th>
+                  <th class="px-5 py-3 font-medium">Contato</th>
+                  <th class="px-5 py-3 font-medium">WhatsApp</th>
+                  <th class="px-5 py-3 font-medium">E-mail</th>
+                  <th class="px-5 py-3 font-medium">Status</th>
+                  <th class="px-5 py-3 text-right font-medium">Ações</th>
+                </tr>
+              </thead>
+              <tbody id="tbodyLeads" class="divide-y divide-slate-100"></tbody>
+            </table>
           </div>
-        </form>
-        <form id="formTeste" class="flex flex-wrap items-end gap-3 border-t border-slate-200 bg-slate-50 px-5 py-4">
-          <div class="w-full">
-            <p class="text-sm font-semibold">Enviar teste para mim</p>
-            <p class="text-xs text-slate-500">Manda as mensagens salvas para o seu celular e e-mail, fora da fila. Use antes de ligar o envio automático.</p>
+          <p id="semLeads" class="hidden px-5 py-12 text-center text-sm text-slate-500">Nenhum lead com esses filtros.</p>
+        </section>
+      </div>
+
+      <!-- =================================================================
+           ABA: LIGAÇÕES
+           ================================================================= -->
+      <div data-painel="ligacoes" class="hidden">
+        <section class="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
+          <div class="flex flex-wrap items-end justify-between gap-3 border-b border-slate-200 px-5 py-4">
+            <div>
+              <h2 class="font-semibold">Ligações</h2>
+              <p class="text-sm text-slate-500">Leads com telefone que não dá para alcançar pelo WhatsApp (fixo, sem conta ou falha). Retornos vencidos aparecem primeiro.</p>
+            </div>
+            <label class="flex items-center gap-2 text-sm text-slate-600"><input id="chkLigTodas" type="checkbox" class="h-4 w-4 rounded border-slate-300" /> Mostrar finalizadas</label>
           </div>
-          <label class="block"><span class="text-xs font-medium text-slate-600">Seu WhatsApp pessoal</span>
-            <input id="testeTelefone" type="tel" placeholder="(11) 9XXXX-XXXX" class="mt-1 w-48 rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-vesco-500 focus:outline-none" /></label>
-          <label class="block"><span class="text-xs font-medium text-slate-600">Seu e-mail</span>
-            <input id="testeEmail" type="email" placeholder="voce@exemplo.com" class="mt-1 w-60 rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-vesco-500 focus:outline-none" /></label>
-          <button id="btnTeste" type="submit" class="rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100 disabled:opacity-50">Enviar teste</button>
-          <p id="txtTeste" class="w-full text-sm"></p>
-        </form>
-      </section>
+          <div class="overflow-x-auto">
+            <table class="w-full text-left text-sm">
+              <thead class="bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
+                <tr>
+                  <th class="px-5 py-3 font-medium">Empresa</th>
+                  <th class="px-5 py-3 font-medium">Telefone</th>
+                  <th class="px-5 py-3 font-medium">Situação</th>
+                  <th class="px-5 py-3 font-medium">Observação</th>
+                  <th class="px-5 py-3 text-right font-medium">Resultado da ligação</th>
+                </tr>
+              </thead>
+              <tbody id="tbodyLigacoes" class="divide-y divide-slate-100"></tbody>
+            </table>
+          </div>
+          <p id="semLigacoes" class="hidden px-5 py-10 text-center text-sm text-slate-500">Nenhuma ligação pendente.</p>
+        </section>
+      </div>
+
+      <!-- =================================================================
+           ABA: MENSAGENS
+           ================================================================= -->
+      <div data-painel="mensagens" class="hidden space-y-6">
+        <section class="rounded-xl border border-slate-200 bg-white shadow-sm">
+          <div class="border-b border-slate-200 px-5 py-4">
+            <h2 class="font-semibold">Mensagem padrão</h2>
+            <p class="text-sm text-slate-500">Usada quando a campanha não tem mensagem própria. Também é a base que a IA adapta para cada nicho. Variáveis: <code>{empresa}</code>, <code>{nicho}</code>, <code>{regiao}</code>.</p>
+          </div>
+          <form id="formMensagens" class="space-y-4 p-5">
+            <div class="grid gap-6 md:grid-cols-2">
+              <div class="space-y-4">
+                <h3 class="text-sm font-semibold text-zap-600">WhatsApp</h3>
+                <label class="block"><span class="text-sm font-medium text-slate-700">Mensagem</span>
+                  <textarea name="msg_whatsapp" rows="10" class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-vesco-500 focus:outline-none"></textarea></label>
+                <label class="block"><span class="text-sm font-medium text-slate-700">Rodapé (descadastro)</span>
+                  <input name="msg_whatsapp_rodape" class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-vesco-500 focus:outline-none" /></label>
+                <label class="flex items-center gap-2 text-sm"><input name="whatsapp_enviar_apresentacao" type="checkbox" class="h-4 w-4 rounded border-slate-300" /> Enviar o PDF da apresentação logo depois</label>
+                <label class="block"><span class="text-sm font-medium text-slate-700">Legenda do PDF</span>
+                  <input name="legenda_apresentacao" class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-vesco-500 focus:outline-none" /></label>
+              </div>
+              <div class="space-y-4">
+                <h3 class="text-sm font-semibold text-vesco-500">E-mail</h3>
+                <label class="block"><span class="text-sm font-medium text-slate-700">Assunto</span>
+                  <input name="email_assunto" class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-vesco-500 focus:outline-none" /></label>
+                <label class="block"><span class="text-sm font-medium text-slate-700">Corpo</span>
+                  <textarea name="email_corpo" rows="13" class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-vesco-500 focus:outline-none"></textarea></label>
+              </div>
+            </div>
+            <div class="flex justify-end">
+              <button type="submit" class="rounded-lg bg-vesco-500 px-5 py-2 text-sm font-medium text-white hover:bg-vesco-600">Salvar mensagem padrão</button>
+            </div>
+          </form>
+        </section>
+
+        <section class="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+          <h2 class="font-semibold">Enviar teste para mim</h2>
+          <p class="mb-4 text-sm text-slate-500">Manda a mensagem padrão para o seu celular e e-mail, fora da fila. Para testar a mensagem de uma campanha, use o botão <b>Mensagens</b> dela.</p>
+          <form id="formTeste" class="flex flex-wrap items-end gap-3">
+            <label class="block"><span class="text-xs font-medium text-slate-600">Seu WhatsApp pessoal</span>
+              <input id="testeTelefone" type="tel" placeholder="(11) 9XXXX-XXXX" class="mt-1 w-48 rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-vesco-500 focus:outline-none" /></label>
+            <label class="block"><span class="text-xs font-medium text-slate-600">Seu e-mail</span>
+              <input id="testeEmail" type="email" placeholder="voce@exemplo.com" class="mt-1 w-60 rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-vesco-500 focus:outline-none" /></label>
+            <button id="btnTeste" type="submit" class="rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100 disabled:opacity-50">Enviar teste</button>
+            <p id="txtTeste" class="w-full text-sm"></p>
+          </form>
+        </section>
+      </div>
     </div>
   </main>
 
+  <!-- ============ MODAL: MENSAGENS DA CAMPANHA (com IA) ============ -->
+  <div id="modalCampanha" class="fixed inset-0 z-40 hidden items-start justify-center overflow-y-auto bg-slate-900/50 p-4 sm:p-8">
+    <div class="w-full max-w-4xl rounded-xl bg-white shadow-xl">
+      <div class="flex items-start justify-between gap-4 border-b border-slate-200 px-6 py-4">
+        <div>
+          <h2 class="text-lg font-semibold">Mensagens da campanha</h2>
+          <p id="mcTitulo" class="text-sm text-slate-500"></p>
+        </div>
+        <button type="button" data-fechar class="rounded-lg p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-600" aria-label="Fechar">
+          <svg class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" d="M6 6l12 12M18 6L6 18"/></svg>
+        </button>
+      </div>
+
+      <div class="space-y-5 px-6 py-5">
+        <!-- IA -->
+        <div class="rounded-lg border border-violet-200 bg-violet-50 p-4">
+          <div class="flex flex-wrap items-end gap-3">
+            <label class="block min-w-[240px] flex-1"><span class="text-sm font-medium text-violet-900">O que você sabe desse nicho? (opcional)</span>
+              <input id="mcObs" placeholder="Ex: vendem muito no fim de semana, usam copo 300ml e gelo" class="mt-1 w-full rounded-lg border border-violet-200 bg-white px-3 py-2 text-sm focus:border-violet-500 focus:outline-none" /></label>
+            <button id="mcGerar" type="button" class="flex items-center gap-2 rounded-lg bg-violet-600 px-4 py-2 text-sm font-semibold text-white hover:bg-violet-700 disabled:cursor-wait disabled:opacity-60">
+              <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 3l1.9 4.6L18.5 9l-4.6 1.9L12 15.5l-1.9-4.6L5.5 9l4.6-1.4L12 3zM19 15l.9 2.1L22 18l-2.1.9L19 21l-.9-2.1L16 18l2.1-.9L19 15z"/></svg>
+              <span>Gerar com IA</span>
+            </button>
+          </div>
+          <p id="mcIAInfo" class="mt-2 text-xs text-violet-800">A IA reescreve a sua mensagem padrão para a dor desse nicho. Você revisa antes de salvar.</p>
+          <div id="mcContexto" class="mt-3 hidden space-y-2 text-xs"></div>
+        </div>
+
+        <div class="grid gap-5 md:grid-cols-2">
+          <div class="space-y-3">
+            <div class="flex items-center justify-between">
+              <h3 class="text-sm font-semibold text-zap-600">WhatsApp</h3>
+              <button id="mcUsarB" type="button" class="hidden text-xs font-medium text-violet-700 hover:underline">Usar versão B</button>
+            </div>
+            <textarea id="mcWhats" rows="12" placeholder="Vazio = usa a mensagem padrão" class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-vesco-500 focus:outline-none"></textarea>
+            <p id="mcWhatsConta" class="text-right text-xs text-slate-400 num"></p>
+            <label class="block"><span class="text-xs font-medium text-slate-600">Legenda do PDF</span>
+              <input id="mcLegenda" placeholder="Vazio = usa a padrão" class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-vesco-500 focus:outline-none" /></label>
+          </div>
+          <div class="space-y-3">
+            <h3 class="text-sm font-semibold text-vesco-500">E-mail</h3>
+            <input id="mcAssunto" placeholder="Assunto (vazio = padrão)" class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-vesco-500 focus:outline-none" />
+            <textarea id="mcCorpo" rows="12" placeholder="Corpo (vazio = padrão)" class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-vesco-500 focus:outline-none"></textarea>
+          </div>
+        </div>
+      </div>
+
+      <div class="flex flex-wrap items-center justify-between gap-3 border-t border-slate-200 bg-slate-50 px-6 py-4">
+        <div class="flex flex-wrap items-center gap-2">
+          <button id="mcTeste" type="button" class="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100">Enviar teste para mim</button>
+          <button id="mcPadrao" type="button" class="rounded-lg px-3 py-2 text-sm text-slate-600 hover:bg-slate-100">Voltar para a padrão</button>
+          <span id="mcTesteTxt" class="text-xs"></span>
+        </div>
+        <div class="flex gap-2">
+          <button type="button" data-fechar class="rounded-lg px-4 py-2 text-sm text-slate-600 hover:bg-slate-100">Cancelar</button>
+          <button id="mcSalvar" type="button" class="rounded-lg bg-vesco-500 px-5 py-2 text-sm font-semibold text-white hover:bg-vesco-600">Salvar na campanha</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div id="tooltip" class="pointer-events-none fixed z-50 hidden rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs shadow-lg"></div>
   <div id="toasts" class="fixed bottom-4 right-4 z-50 flex w-[calc(100%-2rem)] max-w-sm flex-col gap-2"></div>
 
 <script>
 /* =====================================================================
    MÁQUINA DE LEADS VESCO — painel
-   Esta página só comanda e acompanha. Quem busca, acha e-mail e envia
-   WhatsApp/e-mail é o MOTOR no Easypanel (pasta motor/).
+   Esta página só comanda e acompanha. Quem busca, acha e-mail, envia e
+   gera mensagens com IA é o MOTOR no Easypanel (pasta motor/).
    ===================================================================== */
 
 const CHAVE_LOCAL = 'vesco_leads_conexao_v2';
+const CHAVE_TESTE = 'vesco_leads_teste_v1';
 const $ = id => document.getElementById(id);
 
-let conexao = lerConexao();
+let conexao = lerJson(CHAVE_LOCAL, { url: '', token: '' });
 let ajustes = {};
 let campanhas = [];
 let leads = [];
+let ligacoes = [];
+let painel = null;
 let ultimoResumo = null;
+let abaAtual = 'painel';
+let diasGrafico = 30;
+let grupoAberto = null;
 
 const ROTULO_LEAD = {
   NOVO:       ['Novo', 'bg-slate-100 text-slate-700'],
@@ -320,6 +505,20 @@ const ROTULO_CANAL = {
   sem_email:    ['Sem e-mail', 'text-slate-400'],
   duplicado:    ['Repetido', 'text-slate-400']
 };
+const ROTULO_LIGACAO = {
+  a_ligar:       ['A ligar', 'bg-amber-100 text-amber-800'],
+  nao_atendeu:   ['Não atendeu', 'bg-slate-100 text-slate-700'],
+  retornar:      ['Retornar', 'bg-blue-100 text-blue-800'],
+  interessado:   ['Interessado', 'bg-green-100 text-green-800'],
+  sem_interesse: ['Sem interesse', 'bg-slate-100 text-slate-400'],
+  numero_errado: ['Nº errado', 'bg-red-100 text-red-700']
+};
+const MOTIVO_LIGAR = { sem_whatsapp: 'Sem WhatsApp / fixo', sem_numero: 'Número fora do padrão', falha: 'WhatsApp falhou' };
+const SERIES = [
+  { chave: 'whatsapp', nome: 'WhatsApp enviados', cor: 'var(--serie-whatsapp)' },
+  { chave: 'email', nome: 'E-mails enviados', cor: 'var(--serie-email)' },
+  { chave: 'respostas', nome: 'Respostas', cor: 'var(--serie-respostas)' }
+];
 
 /* ---------------------------------------------------------------------
    FETCH GENÉRICO para o motor (timeout + token + erro legível)
@@ -338,7 +537,26 @@ async function api(caminho, { method = 'GET', body, timeoutMs = 15000 } = {}) {
 }
 
 /* ---------------------------------------------------------------------
-   CARREGAMENTO
+   ABAS
+   --------------------------------------------------------------------- */
+function irPara(aba) {
+  abaAtual = ['painel', 'prospectar', 'funil', 'ligacoes', 'mensagens'].includes(aba) ? aba : 'painel';
+  document.querySelectorAll('[data-painel]').forEach(el => el.classList.toggle('hidden', el.dataset.painel !== abaAtual));
+  document.querySelectorAll('.aba').forEach(b => b.setAttribute('aria-selected', String(b.dataset.aba === abaAtual)));
+  if (location.hash !== '#' + abaAtual) history.replaceState(null, '', '#' + abaAtual);
+  carregarAba().catch(err => toast(err.message, 'erro'));
+}
+
+async function carregarAba() {
+  if (!conexao.url) return;
+  if (abaAtual === 'painel') await carregarPainel();
+  if (abaAtual === 'prospectar') await carregarCampanhas();
+  if (abaAtual === 'funil') { if (!campanhas.length) await carregarCampanhas(); await carregarLeads(); }
+  if (abaAtual === 'ligacoes') await carregarLigacoes();
+}
+
+/* ---------------------------------------------------------------------
+   STATUS DO MOTOR (topo)
    --------------------------------------------------------------------- */
 async function carregarResumo() {
   const r = await api('/resumo');
@@ -352,7 +570,7 @@ async function carregarResumo() {
   $('txtEnvio').textContent = !r.envio_ativo
     ? 'Pausado. Ligue para o motor começar a enviar a fila.'
     : r.dentro_horario
-      ? `Ligado · enviando de ${r.horario.inicio}h às ${r.horario.fim}h (${dias})`
+      ? `Ligado · enviando das ${r.horario.inicio}h às ${r.horario.fim}h (${dias})`
       : `Ligado · fora do horário, volta às ${r.horario.inicio}h (${dias})`;
 
   barra('barraZap', 'txtZapHoje', r.hoje.whatsapp, r.limites.whatsapp, r.totais.fila_whatsapp);
@@ -362,29 +580,427 @@ async function carregarResumo() {
   if (!r.configurado.google) avisos.push('Busca bloqueada: falta chave do Google');
   if (!r.configurado.whatsapp) avisos.push('WhatsApp não conectado');
   if (!r.configurado.email) avisos.push('E-mail não conectado');
+  if (!r.configurado.ia) avisos.push('IA desligada: falta ANTHROPIC_API_KEY');
   if (!r.apresentacao) avisos.push('Sem PDF da apresentação');
-  $('kpiLeads').textContent = r.totais.leads;
-  $('kpiContatados').textContent = r.totais.contatados;
-  $('kpiResponderam').textContent = r.totais.responderam;
-  $('kpiOptout').textContent = r.totais.optout;
-  $('kpiLigar').textContent = r.totais.a_ligar;
-  $('txtAgenda').textContent = `Cada busca vira uma campanha. As que estão com "Agenda" ligada rodam sozinhas (${cronTexto(r.agenda_busca)}).`;
-  if (r.google?.limite_mes) {
-    $('txtAgenda').textContent += ` Google este mês: ${r.google.buscas_mes} de ${r.google.limite_mes} buscas grátis.`;
-    if (r.google.buscas_mes >= r.google.limite_mes) avisos.push('Limite grátis do Google atingido este mês');
-  }
-  $('avisosSimulado').innerHTML = avisos
+  if (r.google?.limite_mes && r.google.buscas_mes >= r.google.limite_mes) avisos.push('Limite grátis do Google atingido este mês');
+  $('avisos').innerHTML = avisos
     .map(a => `<span class="rounded-full bg-amber-100 px-2.5 py-1 text-xs font-medium text-amber-800">${esc(a)}</span>`).join('');
+
+  const nLigar = r.totais.a_ligar || 0;
+  $('badgeLigar').textContent = nLigar;
+  $('badgeLigar').classList.toggle('hidden', !nLigar);
+  $('kpiLigar').textContent = nLigar;
+
+  let agenda = `Cada busca vira uma campanha. As com "Agenda" ligada rodam sozinhas (${cronTexto(r.agenda_busca)}).`;
+  if (r.google?.limite_mes) agenda += ` Google este mês: ${r.google.buscas_mes} de ${r.google.limite_mes} buscas grátis.`;
+  $('txtAgenda').textContent = agenda;
+
+  // IA: checkbox da busca e botão do modal só funcionam com a chave configurada
+  $('chkIA').disabled = !r.configurado.ia;
+  if (!r.configurado.ia) $('chkIA').checked = false;
+  $('lblIA').classList.toggle('opacity-50', !r.configurado.ia);
+  $('lblIA').title = r.configurado.ia ? '' : 'Configure ANTHROPIC_API_KEY no Easypanel para usar a IA';
 }
 
+/* ---------------------------------------------------------------------
+   ABA PAINEL
+   --------------------------------------------------------------------- */
+async function carregarPainel() {
+  painel = await api('/painel?dias=' + diasGrafico);
+  renderPainel();
+}
+
+function renderPainel() {
+  const g = painel.grupos;
+  const soma = k => g.reduce((t, x) => t + (x[k] || 0), 0);
+  const tot = { leads: soma('leads'), contatados: soma('contatados'), responderam: soma('responderam'), interessados: soma('interessados'), fila: soma('na_fila') };
+
+  $('kpiLeads').textContent = fmt(tot.leads);
+  $('kpiLeadsSub').textContent = `${g.length} grupo(s) · ${fmt(tot.fila)} na fila`;
+  $('kpiContatados').textContent = fmt(tot.contatados);
+  $('kpiContatadosSub').textContent = tot.leads ? `${pct(tot.contatados, tot.leads)} dos leads` : ' ';
+  $('kpiResponderam').textContent = fmt(tot.responderam);
+  $('kpiResponderamSub').textContent = tot.contatados ? `${pct(tot.responderam, tot.contatados)} dos contatados` : ' ';
+  $('kpiInteressados').textContent = fmt(tot.interessados);
+
+  // Seletor de período
+  document.querySelectorAll('#seletorPeriodo button').forEach(b => {
+    const ativo = Number(b.dataset.dias) === diasGrafico;
+    b.className = `rounded-md px-2.5 py-1 font-medium ${ativo ? 'bg-vesco-500 text-white' : 'text-slate-600 hover:bg-slate-100'}`;
+  });
+
+  renderGraficoAtividade(painel.serie);
+  renderFunil([
+    ['Leads encontrados', tot.leads],
+    ['Contatados', tot.contatados],
+    ['Responderam', tot.responderam],
+    ['Interessados', tot.interessados]
+  ]);
+  renderGrupos();
+  renderRespostas();
+}
+
+function renderFunil(etapas) {
+  const max = Math.max(etapas[0][1], 1);
+  $('funilConversao').innerHTML = etapas.map(([nome, n], i) => {
+    const anterior = i ? etapas[i - 1][1] : null;
+    return `
+      <div>
+        <div class="mb-1 flex items-baseline justify-between text-sm">
+          <span class="text-slate-700">${nome}</span>
+          <span class="num"><b class="text-slate-900">${fmt(n)}</b>${anterior !== null ? ` <span class="text-xs text-slate-500">· ${pct(n, anterior)} da etapa anterior</span>` : ''}</span>
+        </div>
+        <div class="h-3 rounded-full bg-slate-100">
+          <div class="h-3 rounded-full bg-vesco-500" style="width:${Math.max((n / max) * 100, n ? 1.5 : 0)}%; opacity:${1 - i * 0.18}"></div>
+        </div>
+      </div>`;
+  }).join('');
+}
+
+function renderGrupos() {
+  const g = painel.grupos;
+  $('semGrupos').classList.toggle('hidden', g.length > 0);
+  const maxTaxa = Math.max(...g.map(x => (x.contatados ? x.responderam / x.contatados : 0)), 0.0001);
+  $('tbodyGrupos').innerHTML = g.map(x => {
+    const taxa = x.contatados ? x.responderam / x.contatados : 0;
+    const aberto = grupoAberto === chaveGrupo(x.nicho);
+    const camps = painel.campanhas.filter(c => chaveGrupo(c.nicho) === chaveGrupo(x.nicho));
+    return `
+      <tr class="cursor-pointer hover:bg-slate-50" data-grupo="${esc(chaveGrupo(x.nicho))}">
+        <td class="px-5 py-3">
+          <div class="flex items-center gap-2">
+            <svg class="h-4 w-4 text-slate-400 transition ${aberto ? 'rotate-90' : ''}" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 6l6 6-6 6"/></svg>
+            <div><p class="font-medium text-slate-900">${esc(x.nicho)}</p><p class="text-xs text-slate-500">${x.campanhas} campanha(s)</p></div>
+          </div>
+        </td>
+        <td class="px-3 py-3 text-right num">${fmt(x.leads)}</td>
+        <td class="px-3 py-3 text-right num">${fmt(x.whatsapp)}</td>
+        <td class="px-3 py-3 text-right num">${fmt(x.email)}</td>
+        <td class="px-3 py-3 text-right font-semibold num">${fmt(x.responderam)}</td>
+        <td class="px-3 py-3">
+          <div class="flex items-center gap-2">
+            <div class="h-2 w-28 rounded-full bg-slate-100"><div class="h-2 rounded-full" style="width:${(taxa / maxTaxa) * 100}%;background:var(--serie-respostas)"></div></div>
+            <span class="w-12 text-xs text-slate-700 num">${x.contatados ? pct(x.responderam, x.contatados) : '—'}</span>
+          </div>
+        </td>
+        <td class="px-3 py-3 text-right text-slate-600 num">${fmt(x.na_fila)}</td>
+        <td class="px-3 py-3 text-right num">${x.a_ligar ? `<span class="rounded-full bg-amber-100 px-2 py-0.5 text-xs font-semibold text-amber-800">${x.a_ligar}</span>` : '<span class="text-slate-400">0</span>'}</td>
+        <td class="px-5 py-3 text-right"><button type="button" data-ver-nicho="${esc(x.nicho)}" class="rounded-lg px-2.5 py-1.5 text-xs font-medium text-vesco-600 hover:bg-vesco-50">Ver leads</button></td>
+      </tr>
+      ${aberto ? camps.map(c => `
+        <tr class="bg-slate-50/70 text-xs">
+          <td class="py-2 pl-14 pr-5">
+            <p class="font-medium text-slate-700">${esc(c.regiao)}</p>
+            <p class="text-slate-500">${c.ativa ? 'Agenda ligada' : 'Agenda desligada'} · ${c.auto_envio ? 'envio auto' : 'envio manual'} · ${c.mensagem_propria ? 'mensagem própria' : 'mensagem padrão'}</p>
+          </td>
+          <td class="px-3 py-2 text-right num">${fmt(c.leads)}</td>
+          <td class="px-3 py-2 text-right num">${fmt(c.whatsapp)}</td>
+          <td class="px-3 py-2 text-right num">${fmt(c.email)}</td>
+          <td class="px-3 py-2 text-right font-semibold num">${fmt(c.responderam)}</td>
+          <td class="px-3 py-2 text-slate-700 num">${c.contatados ? pct(c.responderam, c.contatados) : '—'}</td>
+          <td class="px-3 py-2 text-right num">${fmt(c.na_fila)}</td>
+          <td class="px-3 py-2"></td>
+          <td class="px-5 py-2 text-right"><button type="button" data-ver-camp="${c.id}" class="rounded-lg px-2.5 py-1 font-medium text-vesco-600 hover:bg-vesco-50">Ver leads</button></td>
+        </tr>`).join('') : ''}`;
+  }).join('');
+}
+
+function renderRespostas() {
+  const r = painel.respostas;
+  $('semRespostas').classList.toggle('hidden', r.length > 0);
+  $('listaRespostas').innerHTML = r.map(x => {
+    const ligacao = x.tipo === 'ligacao';
+    const texto = ligacao ? `Interessado na ligação${x.detalhe?.obs ? ': ' + x.detalhe.obs : ''}` : (x.detalhe?.texto || 'Respondeu no WhatsApp');
+    const link = x.whatsapp ? `https://wa.me/${x.whatsapp}` : null;
+    return `
+      <li class="flex items-start gap-3 px-5 py-3">
+        <span class="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full ${ligacao ? 'bg-amber-100 text-amber-700' : 'bg-green-100 text-green-700'}">
+          ${ligacao
+            ? '<svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M3 5a2 2 0 012-2h2.3a1 1 0 01.9.7l1.2 3.6a1 1 0 01-.5 1.2l-1.6.8a11 11 0 005.4 5.4l.8-1.6a1 1 0 011.2-.5l3.6 1.2a1 1 0 01.7.9V19a2 2 0 01-2 2h-1C9.7 21 3 14.3 3 6V5z"/></svg>'
+            : ICONE_WHATS}
+        </span>
+        <div class="min-w-0 flex-1">
+          <div class="flex flex-wrap items-baseline justify-between gap-2">
+            <p class="font-medium text-slate-900">${esc(x.nome)} <span class="text-xs font-normal text-slate-500">· ${esc(x.nicho || '')}</span></p>
+            <span class="text-xs text-slate-500">${tempoAtras(x.criado_em)}</span>
+          </div>
+          <p class="truncate text-sm text-slate-600" title="${esc(texto)}">“${esc(texto)}”</p>
+        </div>
+        ${link ? `<a href="${link}" target="_blank" rel="noopener" class="shrink-0 rounded-lg bg-zap-500 px-3 py-1.5 text-xs font-semibold text-white hover:bg-zap-600">Responder</a>`
+               : `<a href="tel:${esc(String(x.telefone || '').replace(/\D/g, ''))}" class="shrink-0 rounded-lg border border-slate-300 px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50">Ligar</a>`}
+      </li>`;
+  }).join('');
+}
+
+/* Gráfico de linhas em SVG: 3 séries, um eixo, linhas de 2px, crosshair + tooltip */
+function renderGraficoAtividade(serie) {
+  const caixa = $('graficoAtividade');
+  const L = caixa.clientWidth || 600, A = caixa.clientHeight || 256;
+  const m = { t: 10, r: 12, b: 26, l: 34 };
+  const w = L - m.l - m.r, h = A - m.t - m.b;
+  const n = serie.length;
+  const max = Math.max(1, ...serie.flatMap(d => SERIES.map(s => d[s.chave])));
+  const passo = escalaBonita(max);
+  const topo = Math.ceil(max / passo) * passo;
+  const x = i => m.l + (n <= 1 ? w / 2 : (i / (n - 1)) * w);
+  const y = v => m.t + h - (v / topo) * h;
+
+  let svg = `<svg width="${L}" height="${A}" class="block" role="img" aria-label="Atividade por dia">`;
+  for (let v = 0; v <= topo; v += passo) {
+    svg += `<line x1="${m.l}" x2="${L - m.r}" y1="${y(v)}" y2="${y(v)}" stroke="var(--grade)" stroke-width="1"/>`;
+    svg += `<text x="${m.l - 6}" y="${y(v) + 4}" text-anchor="end" font-size="11" fill="#78716c" class="num">${v}</text>`;
+  }
+  const cadaRotulo = Math.max(1, Math.ceil(n / 8));
+  serie.forEach((d, i) => {
+    if (i % cadaRotulo === 0 || i === n - 1) {
+      svg += `<text x="${x(i)}" y="${A - 6}" text-anchor="middle" font-size="11" fill="#78716c">${diaCurto(d.dia)}</text>`;
+    }
+  });
+  for (const s of SERIES) {
+    const pts = serie.map((d, i) => `${x(i).toFixed(1)},${y(d[s.chave]).toFixed(1)}`).join(' ');
+    svg += `<polyline points="${pts}" fill="none" stroke="${s.cor}" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>`;
+  }
+  svg += `<line id="cruz" x1="0" x2="0" y1="${m.t}" y2="${m.t + h}" stroke="#a8a29e" stroke-width="1" stroke-dasharray="3 3" visibility="hidden"/>`;
+  svg += `<g id="marcadores"></g>`;
+  svg += `<rect x="${m.l}" y="${m.t}" width="${w}" height="${h}" fill="transparent" id="areaHover"/>`;
+  svg += `</svg>`;
+  caixa.innerHTML = svg;
+
+  const tot = k => serie.reduce((t, d) => t + d[k], 0);
+  $('legendaAtividade').innerHTML = SERIES.map(s =>
+    `<span class="flex items-center gap-1.5"><span class="inline-block h-0.5 w-4 rounded" style="background:${s.cor}"></span>${s.nome} <b class="text-slate-800 num">${fmt(tot(s.chave))}</b></span>`
+  ).join('');
+
+  const area = caixa.querySelector('#areaHover');
+  const cruz = caixa.querySelector('#cruz');
+  const marc = caixa.querySelector('#marcadores');
+  const tip = $('tooltip');
+  area.addEventListener('mousemove', ev => {
+    const r = area.getBoundingClientRect();
+    const i = Math.max(0, Math.min(n - 1, Math.round(((ev.clientX - r.left) / r.width) * (n - 1))));
+    const d = serie[i];
+    cruz.setAttribute('x1', x(i)); cruz.setAttribute('x2', x(i)); cruz.setAttribute('visibility', 'visible');
+    marc.innerHTML = SERIES.map(s => `<circle cx="${x(i)}" cy="${y(d[s.chave])}" r="4" fill="${s.cor}" stroke="#fff" stroke-width="2"/>`).join('');
+    tip.innerHTML = `<p class="mb-1 font-semibold text-slate-800">${dataLonga(d.dia)}</p>` + SERIES.map(s =>
+      `<p class="flex items-center justify-between gap-4"><span class="flex items-center gap-1.5 text-slate-600"><span class="inline-block h-2 w-2 rounded-full" style="background:${s.cor}"></span>${s.nome}</span><b class="text-slate-900 num">${d[s.chave]}</b></p>`).join('');
+    tip.classList.remove('hidden');
+    const tx = Math.min(ev.clientX + 14, window.innerWidth - tip.offsetWidth - 8);
+    tip.style.left = tx + 'px';
+    tip.style.top = (ev.clientY - tip.offsetHeight - 10) + 'px';
+  });
+  area.addEventListener('mouseleave', () => {
+    cruz.setAttribute('visibility', 'hidden'); marc.innerHTML = ''; tip.classList.add('hidden');
+  });
+}
+
+function escalaBonita(max) {
+  const bruto = max / 4;
+  const pot = Math.pow(10, Math.floor(Math.log10(bruto || 1)));
+  return [1, 2, 5, 10].map(f => f * pot).find(p => p >= bruto) || pot * 10;
+}
+
+/* ---------------------------------------------------------------------
+   ABA PROSPECTAR
+   --------------------------------------------------------------------- */
 async function carregarCampanhas() {
   campanhas = await api('/campanhas');
   renderCampanhas();
 }
 
+function renderCampanhas() {
+  // filtros do funil
+  const sel = $('filtroCampanha');
+  const atual = sel.value;
+  sel.innerHTML = '<option value="">Todas as campanhas</option>' +
+    campanhas.map(c => `<option value="${c.id}">${esc(c.nicho)} · ${esc(c.regiao)}</option>`).join('');
+  sel.value = campanhas.some(c => String(c.id) === atual) ? atual : '';
+  const selN = $('filtroNicho');
+  const atualN = selN.value;
+  const nichos = [...new Map(campanhas.map(c => [chaveGrupo(c.nicho), c.nicho])).values()];
+  selN.innerHTML = '<option value="">Todos os grupos</option>' + nichos.map(n => `<option value="${esc(n)}">${esc(n)}</option>`).join('');
+  selN.value = nichos.includes(atualN) ? atualN : '';
+
+  $('semCampanhas').classList.toggle('hidden', campanhas.length > 0);
+  $('tbodyCampanhas').innerHTML = campanhas.map(c => {
+    const r = c.ultimo_resultado;
+    const execucao = c.executando
+      ? '<span class="flex items-center gap-2 text-amber-600"><svg class="spin h-4 w-4" fill="none" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-opacity=".3" stroke-width="3"/><path d="M21 12a9 9 0 00-9-9" stroke="currentColor" stroke-width="3" stroke-linecap="round"/></svg>Buscando…</span>'
+      : !r ? '<span class="text-slate-400">Nunca rodou</span>'
+      : r.status === 'erro' ? `<span class="text-red-600" title="${esc(r.erro)}">Erro: ${esc(r.erro).slice(0, 50)}</span>`
+      : `<span class="text-slate-700">${r.novos} novos de ${r.encontrados}</span><span class="block text-xs text-slate-500">${dataCurta(c.ultima_execucao)}</span>`;
+    const msg = c.mensagem
+      ? `<span class="inline-flex items-center gap-1 rounded-full bg-violet-100 px-2 py-0.5 text-xs font-medium text-violet-800">${c.ia_contexto ? '✦ IA' : 'Própria'}</span>`
+      : '<span class="text-xs text-slate-400">Padrão</span>';
+    return `
+      <tr class="hover:bg-slate-50/70">
+        <td class="px-5 py-3"><p class="font-medium text-slate-900">${esc(c.nicho)}</p><p class="text-xs text-slate-500">${esc(c.regiao)} · ${c.total_leads} leads</p></td>
+        <td class="px-3 py-3">${msg}</td>
+        <td class="px-3 py-3">${execucao}</td>
+        <td class="px-3 py-3">${chaveHtml(c.ativa, `data-camp="${c.id}" data-campo="ativa"`)}</td>
+        <td class="px-3 py-3">${chaveHtml(c.auto_envio, `data-camp="${c.id}" data-campo="auto_envio"`)}</td>
+        <td class="px-5 py-3">
+          <div class="flex justify-end gap-1">
+            <button type="button" data-acao-camp="mensagens" data-id="${c.id}" class="rounded-lg px-2.5 py-1.5 text-xs font-medium text-violet-700 hover:bg-violet-50">Mensagens</button>
+            <button type="button" data-acao-camp="rodar" data-id="${c.id}" ${c.executando ? 'disabled' : ''} class="rounded-lg px-2.5 py-1.5 text-xs font-medium text-vesco-600 hover:bg-vesco-50 disabled:opacity-40">Rodar agora</button>
+            <button type="button" data-acao-camp="ver" data-id="${c.id}" class="rounded-lg px-2.5 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-100">Ver leads</button>
+            <button type="button" data-acao-camp="excluir" data-id="${c.id}" class="rounded-lg px-2.5 py-1.5 text-xs font-medium text-red-600 hover:bg-red-50">Excluir</button>
+          </div>
+        </td>
+      </tr>`;
+  }).join('');
+}
+
+async function acaoCampanha(acao, id) {
+  try {
+    if (acao === 'mensagens') return abrirModalCampanha(id);
+    if (acao === 'rodar') {
+      await api(`/campanhas/${id}/executar`, { method: 'POST' });
+      toast('Busca iniciada.', 'info');
+      acompanharBusca(id);
+    }
+    if (acao === 'ver') return verLeads({ campanha: id });
+    if (acao === 'excluir') {
+      if (!confirm('Excluir a campanha? Os leads continuam no funil.')) return;
+      await api(`/campanhas/${id}`, { method: 'DELETE' });
+    }
+    await carregarCampanhas();
+  } catch (err) {
+    toast(err.message, 'erro');
+  }
+}
+
+async function acompanharBusca(id) {
+  for (let i = 0; i < 80; i++) {
+    await new Promise(r => setTimeout(r, 3000));
+    await carregarCampanhas().catch(() => {});
+    const c = campanhas.find(x => x.id === id);
+    if (!c || c.executando) continue;
+    const r = c.ultimo_resultado || {};
+    toast(r.status === 'erro' ? `Busca falhou: ${r.erro}` : `${r.novos} leads novos (${r.com_email} com e-mail).`, r.status === 'erro' ? 'erro' : 'ok');
+    carregarResumo().catch(() => {});
+    return;
+  }
+}
+
+/* ---------- Modal de mensagens da campanha (IA) ---------- */
+let campanhaModal = null;
+let versaoB = '';
+
+function abrirModalCampanha(id) {
+  const c = campanhas.find(x => x.id === id);
+  if (!c) return;
+  campanhaModal = c;
+  versaoB = c.ia_contexto?.whatsapp_b || '';
+  $('mcTitulo').textContent = `${c.nicho} · ${c.regiao}`;
+  $('mcWhats').value = c.mensagem || '';
+  $('mcLegenda').value = c.legenda_pdf || '';
+  $('mcAssunto').value = c.email_assunto || '';
+  $('mcCorpo').value = c.email_corpo || '';
+  $('mcObs').value = '';
+  $('mcTesteTxt').textContent = '';
+  renderContextoIA(c.ia_contexto);
+  contarWhats();
+  const iaOk = !!ultimoResumo?.configurado?.ia;
+  $('mcGerar').disabled = !iaOk;
+  $('mcIAInfo').textContent = iaOk
+    ? 'A IA reescreve a sua mensagem padrão para a dor desse nicho. Você revisa antes de salvar.'
+    : 'IA desligada: coloque ANTHROPIC_API_KEY no Easypanel para usar. Você ainda pode escrever a mensagem à mão.';
+  $('modalCampanha').classList.replace('hidden', 'flex');
+}
+
+function fecharModal() {
+  $('modalCampanha').classList.replace('flex', 'hidden');
+  campanhaModal = null;
+}
+
+function renderContextoIA(ctx) {
+  const el = $('mcContexto');
+  if (!ctx || (!ctx.dores?.length && !ctx.produtos?.length)) { el.classList.add('hidden'); $('mcUsarB').classList.add('hidden'); return; }
+  const chips = (lista, cls) => (lista || []).map(t => `<span class="rounded-full px-2 py-0.5 ${cls}">${esc(t)}</span>`).join(' ');
+  el.innerHTML = `
+    <p class="flex flex-wrap items-center gap-1"><b class="mr-1 text-violet-900">Dores:</b> ${chips(ctx.dores, 'bg-white text-violet-800 border border-violet-200')}</p>
+    <p class="flex flex-wrap items-center gap-1"><b class="mr-1 text-violet-900">Produtos:</b> ${chips(ctx.produtos, 'bg-white text-slate-700 border border-slate-200')}</p>`;
+  el.classList.remove('hidden');
+  $('mcUsarB').classList.toggle('hidden', !versaoB);
+}
+
+function contarWhats() {
+  const n = $('mcWhats').value.length;
+  $('mcWhatsConta').textContent = n ? `${n} caracteres${n > 900 ? ' · longo para WhatsApp' : ''}` : 'vazio: usa a mensagem padrão';
+}
+
+async function gerarComIA() {
+  const btn = $('mcGerar');
+  btn.disabled = true;
+  btn.querySelector('span').textContent = 'Gerando…';
+  try {
+    const r = await api(`/campanhas/${campanhaModal.id}/ia`, { method: 'POST', body: { observacoes: $('mcObs').value.trim() }, timeoutMs: 120000 });
+    $('mcWhats').value = r.whatsapp_a;
+    $('mcAssunto').value = r.email_assunto;
+    $('mcCorpo').value = r.email_corpo;
+    $('mcLegenda').value = r.legenda_pdf;
+    versaoB = r.whatsapp_b;
+    renderContextoIA({ dores: r.dores, produtos: r.produtos });
+    contarWhats();
+    toast('Mensagens geradas e salvas na campanha. Revise e ajuste se quiser.', 'ok');
+    carregarCampanhas().catch(() => {});
+  } catch (err) {
+    toast(err.message, 'erro');
+  } finally {
+    btn.disabled = !ultimoResumo?.configurado?.ia;
+    btn.querySelector('span').textContent = 'Gerar com IA';
+  }
+}
+
+async function salvarModal() {
+  try {
+    await api(`/campanhas/${campanhaModal.id}`, {
+      method: 'PATCH',
+      body: { mensagem: $('mcWhats').value, email_assunto: $('mcAssunto').value, email_corpo: $('mcCorpo').value, legenda_pdf: $('mcLegenda').value }
+    });
+    toast('Mensagens salvas na campanha.', 'ok');
+    fecharModal();
+    carregarCampanhas().catch(() => {});
+  } catch (err) {
+    toast(err.message, 'erro');
+  }
+}
+
+async function testeModal() {
+  const t = lerJson(CHAVE_TESTE, {});
+  if (!t.telefone && !t.email) {
+    toast('Cadastre seu WhatsApp/e-mail de teste na aba Mensagens primeiro.', 'erro');
+    return;
+  }
+  // salva antes, para o teste usar exatamente o que está na tela
+  await salvarSemFechar();
+  $('mcTesteTxt').className = 'text-xs text-slate-500';
+  $('mcTesteTxt').textContent = 'Enviando…';
+  try {
+    const r = await api('/teste', { method: 'POST', body: { telefone: t.telefone, email: t.email, campanha_id: campanhaModal.id }, timeoutMs: 60000 });
+    const falhou = [r.whatsapp, r.email].some(x => x && !x.ok);
+    $('mcTesteTxt').className = `text-xs ${falhou ? 'text-red-600' : 'text-green-700'}`;
+    $('mcTesteTxt').textContent = [r.whatsapp && `WhatsApp: ${r.whatsapp.ok ? 'enviado' : r.whatsapp.erro}`, r.email && `E-mail: ${r.email.ok ? 'enviado' : r.email.erro}`].filter(Boolean).join(' · ');
+  } catch (err) {
+    $('mcTesteTxt').className = 'text-xs text-red-600';
+    $('mcTesteTxt').textContent = err.message;
+  }
+}
+
+async function salvarSemFechar() {
+  await api(`/campanhas/${campanhaModal.id}`, {
+    method: 'PATCH',
+    body: { mensagem: $('mcWhats').value, email_assunto: $('mcAssunto').value, email_corpo: $('mcCorpo').value, legenda_pdf: $('mcLegenda').value }
+  });
+}
+
+/* ---------------------------------------------------------------------
+   ABA FUNIL
+   --------------------------------------------------------------------- */
 async function carregarLeads() {
   const p = new URLSearchParams({ limit: 500 });
   if ($('filtroCampanha').value) p.set('campanha_id', $('filtroCampanha').value);
+  if ($('filtroNicho').value) p.set('nicho', $('filtroNicho').value);
   if ($('filtroStatus').value) p.set('status', $('filtroStatus').value);
   if ($('filtroBusca').value.trim()) p.set('q', $('filtroBusca').value.trim());
   const r = await api('/leads?' + p);
@@ -393,41 +1009,105 @@ async function carregarLeads() {
   renderLeads();
 }
 
-async function carregarAjustes() {
-  ajustes = await api('/ajustes');
-  const f = $('formMensagens');
-  for (const el of f.elements) {
-    if (!el.name) continue;
-    if (el.type === 'checkbox') el.checked = !!ajustes[el.name];
-    else el.value = ajustes[el.name] ?? '';
+async function verLeads({ campanha, nicho }) {
+  if (!campanhas.length) await carregarCampanhas();
+  $('filtroCampanha').value = campanha ? String(campanha) : '';
+  const opcao = [...$('filtroNicho').options].find(o => o.value && chaveGrupo(o.value) === chaveGrupo(nicho));
+  $('filtroNicho').value = opcao ? opcao.value : '';
+  $('filtroStatus').value = '';
+  $('filtroBusca').value = '';
+  irPara('funil');
+}
+
+const ICONE_WHATS = '<svg class="h-4 w-4" viewBox="0 0 24 24" fill="currentColor"><path d="M17.5 14.4c-.3-.1-1.8-.9-2-1s-.5-.1-.7.1-.8 1-1 1.2-.4.2-.7.1a8.2 8.2 0 01-4.1-3.6c-.3-.5.3-.5.9-1.6.1-.2 0-.4 0-.5l-.9-2.2c-.2-.6-.5-.5-.7-.5h-.6a1.1 1.1 0 00-.8.4 3.4 3.4 0 00-1 2.5 5.9 5.9 0 001.2 3.1 13.5 13.5 0 005.2 4.6c1.9.8 2.7.9 3.6.8a3.1 3.1 0 002-1.4 2.5 2.5 0 00.2-1.4c-.1-.1-.3-.2-.6-.3zM12 21.8a9.8 9.8 0 01-5-1.4l-.4-.2-3.7 1 1-3.6-.2-.4A9.8 9.8 0 1112 21.8zM20.5 3.5A11.8 11.8 0 001.9 17.7L.2 24l6.4-1.7A11.8 11.8 0 0024 12a11.7 11.7 0 00-3.5-8.5z"/></svg>';
+const ICONE_ENVIAR = '<svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M5 12h14M13 6l6 6-6 6"/></svg>';
+
+function canalHtml(status, data) {
+  const [rotulo, cor] = ROTULO_CANAL[status] || [status, 'text-slate-500'];
+  return `<span class="whitespace-nowrap text-xs font-medium ${cor}">${rotulo}</span>${data ? `<span class="block text-xs text-slate-400">${dataCurta(data)}</span>` : ''}`;
+}
+
+function renderLeads() {
+  $('semLeads').classList.toggle('hidden', leads.length > 0);
+  $('tbodyLeads').innerHTML = leads.map(l => {
+    const [rotulo, cor] = ROTULO_LEAD[l.status] || [l.status, ''];
+    const bloqueado = ['OPTOUT', 'DESCARTADO'].includes(l.status);
+    const enfileiravel = st => ['pendente', 'falha'].includes(st);
+    const podeEnfileirar = !bloqueado && ((l.whatsapp && enfileiravel(l.whatsapp_status)) || (l.email && enfileiravel(l.email_status)));
+    return `
+      <tr class="hover:bg-slate-50/70 ${bloqueado ? 'opacity-60' : ''}">
+        <td class="max-w-xs px-5 py-3">
+          <p class="font-medium text-slate-900">${esc(l.nome)}</p>
+          <p class="truncate text-xs text-slate-500" title="${esc(l.endereco || '')}">${esc(l.endereco || '')}</p>
+          <p class="text-xs text-slate-400">${esc(l.nicho || '')}${l.site ? ` · <a href="${esc(l.site)}" target="_blank" rel="noopener" class="text-vesco-500 hover:underline">site</a>` : ''}</p>
+        </td>
+        <td class="px-5 py-3">
+          <p class="whitespace-nowrap text-slate-700">${esc(l.telefone || '—')}</p>
+          <p class="text-xs text-slate-500">${esc(l.email || 'sem e-mail')}</p>
+        </td>
+        <td class="px-5 py-3">${canalHtml(l.whatsapp_status, l.whatsapp_enviado_em)}</td>
+        <td class="px-5 py-3">${canalHtml(l.email_status, l.email_enviado_em)}</td>
+        <td class="px-5 py-3">
+          <span class="inline-flex whitespace-nowrap rounded-full px-2.5 py-1 text-xs font-medium ${cor}">${rotulo}</span>
+          ${l.ultimo_erro ? `<span class="mt-1 block max-w-[12rem] truncate text-xs text-red-500" title="${esc(l.ultimo_erro)}">${esc(l.ultimo_erro)}</span>` : ''}
+        </td>
+        <td class="px-5 py-3">
+          <div class="flex justify-end gap-1.5">
+            <button type="button" data-acao="whats" data-id="${l.id}" ${l.whatsapp && !bloqueado ? '' : 'disabled'} title="Abrir conversa no seu WhatsApp"
+              class="flex items-center gap-1 rounded-lg bg-zap-500 px-2.5 py-1.5 text-xs font-semibold text-white hover:bg-zap-600 disabled:cursor-not-allowed disabled:opacity-40">${ICONE_WHATS}</button>
+            <button type="button" data-acao="enfileirar" data-id="${l.id}" ${podeEnfileirar ? '' : 'disabled'} title="Colocar no topo da fila do motor"
+              class="flex items-center gap-1 whitespace-nowrap rounded-lg border border-slate-300 bg-white px-2.5 py-1.5 text-xs font-semibold text-vesco-600 hover:border-vesco-500 hover:bg-vesco-50 disabled:cursor-not-allowed disabled:opacity-40">${ICONE_ENVIAR} Enviar</button>
+            ${bloqueado
+              ? (l.status === 'DESCARTADO' ? `<button type="button" data-acao="reativar" data-id="${l.id}" class="rounded-lg px-2.5 py-1.5 text-xs text-slate-600 hover:bg-slate-100">Reativar</button>` : '')
+              : `<button type="button" data-acao="descartar" data-id="${l.id}" class="rounded-lg px-2.5 py-1.5 text-xs text-slate-500 hover:bg-red-50 hover:text-red-600">Descartar</button>`}
+          </div>
+        </td>
+      </tr>`;
+  }).join('');
+}
+
+function abrirWhatsApp(lead) {
+  const campanha = campanhas.find(c => c.id === lead.campanha_id);
+  const modelo = campanha?.mensagem || ajustes.msg_whatsapp || '';
+  const texto = modelo.replaceAll('{empresa}', lead.nome).replaceAll('{nicho}', lead.nicho || '').replaceAll('{regiao}', lead.regiao || '');
+  window.open(`https://wa.me/${lead.whatsapp}?text=${encodeURIComponent(texto)}`, '_blank', 'noopener');
+}
+
+async function acaoLead(acao, id) {
+  const lead = leads.find(l => l.id === id);
+  if (!lead) return;
+  try {
+    if (acao === 'whats') return abrirWhatsApp(lead);
+    if (acao === 'enfileirar') {
+      await api(`/leads/${id}/enviar`, { method: 'POST', body: {} });
+      toast(`${lead.nome} foi para o topo da fila.`, 'ok');
+    }
+    if (acao === 'descartar') await api(`/leads/${id}`, { method: 'PATCH', body: { status: 'DESCARTADO' } });
+    if (acao === 'reativar') await api(`/leads/${id}`, { method: 'PATCH', body: { status: 'NOVO' } });
+    await Promise.all([carregarLeads(), carregarResumo()]);
+  } catch (err) {
+    toast(err.message, 'erro');
   }
 }
 
-/* ---------------------------------------------------------------------
-   LIGAÇÕES
-   --------------------------------------------------------------------- */
-let ligacoes = [];
-const ROTULO_LIGACAO = {
-  a_ligar:       ['A ligar', 'bg-amber-100 text-amber-800'],
-  nao_atendeu:   ['Não atendeu', 'bg-slate-100 text-slate-700'],
-  retornar:      ['Retornar', 'bg-blue-100 text-blue-800'],
-  interessado:   ['Interessado', 'bg-green-100 text-green-800'],
-  sem_interesse: ['Sem interesse', 'bg-slate-100 text-slate-400'],
-  numero_errado: ['Nº errado', 'bg-red-100 text-red-700']
-};
-const MOTIVO_LIGAR = { sem_whatsapp: 'Sem WhatsApp / fixo', sem_numero: 'Número fora do padrão', falha: 'WhatsApp falhou' };
+function exportarCsv() {
+  const cab = ['Empresa', 'Telefone', 'E-mail', 'Site', 'Endereço', 'Nicho', 'Região', 'Status', 'WhatsApp', 'E-mail status'];
+  const linhas = leads.map(l => [l.nome, l.telefone, l.email, l.site, l.endereco, l.nicho, l.regiao,
+    (ROTULO_LEAD[l.status] || [l.status])[0], (ROTULO_CANAL[l.whatsapp_status] || [l.whatsapp_status])[0], (ROTULO_CANAL[l.email_status] || [l.email_status])[0]]);
+  const csv = [cab, ...linhas].map(r => r.map(v => `"${String(v ?? '').replace(/"/g, '""')}"`).join(';')).join('\r\n');
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8' }));
+  a.download = `leads-vesco-${dataLocal(new Date())}.csv`;
+  a.click();
+  URL.revokeObjectURL(a.href);
+}
 
+/* ---------------------------------------------------------------------
+   ABA LIGAÇÕES
+   --------------------------------------------------------------------- */
 async function carregarLigacoes() {
   ligacoes = await api('/ligacoes' + ($('chkLigTodas').checked ? '?mostrar=todas' : ''));
   renderLigacoes();
-}
-
-function dataLocal(d) {
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-}
-function amanha() {
-  const d = new Date(); d.setDate(d.getDate() + 1);
-  return dataLocal(d);
 }
 
 function renderLigacoes() {
@@ -482,190 +1162,22 @@ async function registrarLigacao(id, resultado) {
   try {
     await api(`/leads/${id}/ligacao`, { method: 'POST', body: { resultado, obs: obs || null, retornar_em } });
     toast(`Ligação registrada: ${ROTULO_LIGACAO[resultado][0]}.`, 'ok');
-    await Promise.all([carregarLigacoes(), carregarResumo(), carregarLeads()]);
+    await Promise.all([carregarLigacoes(), carregarResumo()]);
   } catch (err) {
     toast(err.message, 'erro');
-  }
-}
-
-async function atualizarTudo() {
-  if (!conexao.url) return;
-  try {
-    await Promise.all([carregarResumo(), carregarCampanhas(), carregarLeads(), carregarLigacoes()]);
-  } catch (err) {
-    setConectado(false, err.message);
   }
 }
 
 /* ---------------------------------------------------------------------
-   RENDERIZAÇÃO
+   ABA MENSAGENS
    --------------------------------------------------------------------- */
-function renderCampanhas() {
-  const sel = $('filtroCampanha');
-  const atual = sel.value;
-  sel.innerHTML = '<option value="">Todas as campanhas</option>' +
-    campanhas.map(c => `<option value="${c.id}">${esc(c.nicho)} · ${esc(c.regiao)}</option>`).join('');
-  sel.value = campanhas.some(c => String(c.id) === atual) ? atual : '';
-
-  $('semCampanhas').classList.toggle('hidden', campanhas.length > 0);
-  $('tbodyCampanhas').innerHTML = campanhas.map(c => {
-    const r = c.ultimo_resultado;
-    const execucao = c.executando
-      ? '<span class="flex items-center gap-2 text-amber-600"><svg class="spin h-4 w-4" fill="none" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-opacity=".3" stroke-width="3"/><path d="M21 12a9 9 0 00-9-9" stroke="currentColor" stroke-width="3" stroke-linecap="round"/></svg>Buscando…</span>'
-      : !r ? '<span class="text-slate-400">Nunca rodou</span>'
-      : r.status === 'erro' ? `<span class="text-red-600" title="${esc(r.erro)}">Erro: ${esc(r.erro).slice(0, 60)}</span>`
-      : `<span class="text-slate-700">${r.novos} novos de ${r.encontrados}</span><span class="block text-xs text-slate-500">${dataCurta(c.ultima_execucao)}</span>`;
-    return `
-      <tr class="hover:bg-slate-50/70">
-        <td class="px-5 py-3"><p class="font-medium text-slate-900">${esc(c.nicho)}</p><p class="text-xs text-slate-500">${esc(c.regiao)} · ${c.total_leads} leads</p></td>
-        <td class="px-5 py-3">${execucao}</td>
-        <td class="px-5 py-3">${chaveHtml(c.ativa, `data-camp="${c.id}" data-campo="ativa"`)}</td>
-        <td class="px-5 py-3">${chaveHtml(c.auto_envio, `data-camp="${c.id}" data-campo="auto_envio"`)}</td>
-        <td class="px-5 py-3">
-          <div class="flex justify-end gap-1">
-            <button type="button" data-acao-camp="rodar" data-id="${c.id}" ${c.executando ? 'disabled' : ''} class="rounded-lg px-2.5 py-1.5 text-xs font-medium text-vesco-600 hover:bg-vesco-50 disabled:opacity-40">Rodar agora</button>
-            <button type="button" data-acao-camp="ver" data-id="${c.id}" class="rounded-lg px-2.5 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-100">Ver leads</button>
-            <button type="button" data-acao-camp="excluir" data-id="${c.id}" class="rounded-lg px-2.5 py-1.5 text-xs font-medium text-red-600 hover:bg-red-50">Excluir</button>
-          </div>
-        </td>
-      </tr>`;
-  }).join('');
-}
-
-const ICONE_WHATS = '<svg class="h-4 w-4" viewBox="0 0 24 24" fill="currentColor"><path d="M17.5 14.4c-.3-.1-1.8-.9-2-1s-.5-.1-.7.1-.8 1-1 1.2-.4.2-.7.1a8.2 8.2 0 01-4.1-3.6c-.3-.5.3-.5.9-1.6.1-.2 0-.4 0-.5l-.9-2.2c-.2-.6-.5-.5-.7-.5h-.6a1.1 1.1 0 00-.8.4 3.4 3.4 0 00-1 2.5 5.9 5.9 0 001.2 3.1 13.5 13.5 0 005.2 4.6c1.9.8 2.7.9 3.6.8a3.1 3.1 0 002-1.4 2.5 2.5 0 00.2-1.4c-.1-.1-.3-.2-.6-.3zM12 21.8a9.8 9.8 0 01-5-1.4l-.4-.2-3.7 1 1-3.6-.2-.4A9.8 9.8 0 1112 21.8zM20.5 3.5A11.8 11.8 0 001.9 17.7L.2 24l6.4-1.7A11.8 11.8 0 0024 12a11.7 11.7 0 00-3.5-8.5z"/></svg>';
-const ICONE_ENVIAR = '<svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M5 12h14M13 6l6 6-6 6"/></svg>';
-
-function canalHtml(status, data) {
-  const [rotulo, cor] = ROTULO_CANAL[status] || [status, 'text-slate-500'];
-  return `<span class="whitespace-nowrap text-xs font-medium ${cor}">${rotulo}</span>${data ? `<span class="block text-xs text-slate-400">${dataCurta(data)}</span>` : ''}`;
-}
-
-function renderLeads() {
-  $('semLeads').classList.toggle('hidden', leads.length > 0);
-  $('tbodyLeads').innerHTML = leads.map(l => {
-    const [rotulo, cor] = ROTULO_LEAD[l.status] || [l.status, ''];
-    const bloqueado = ['OPTOUT', 'DESCARTADO'].includes(l.status);
-    const enfileiravel = st => ['pendente', 'falha'].includes(st);
-    const podeEnfileirar = !bloqueado && (
-      (l.whatsapp && enfileiravel(l.whatsapp_status)) || (l.email && enfileiravel(l.email_status)));
-    return `
-      <tr class="hover:bg-slate-50/70 ${bloqueado ? 'opacity-60' : ''}">
-        <td class="max-w-xs px-5 py-3">
-          <p class="font-medium text-slate-900">${esc(l.nome)}</p>
-          <p class="truncate text-xs text-slate-500" title="${esc(l.endereco || '')}">${esc(l.endereco || '')}</p>
-          ${l.site ? `<a href="${esc(l.site)}" target="_blank" rel="noopener" class="text-xs text-vesco-500 hover:underline">site</a>` : ''}
-        </td>
-        <td class="px-5 py-3">
-          <p class="whitespace-nowrap text-slate-700">${esc(l.telefone || '—')}</p>
-          <p class="text-xs text-slate-500">${esc(l.email || 'sem e-mail')}</p>
-        </td>
-        <td class="px-5 py-3">${canalHtml(l.whatsapp_status, l.whatsapp_enviado_em)}</td>
-        <td class="px-5 py-3">${canalHtml(l.email_status, l.email_enviado_em)}</td>
-        <td class="px-5 py-3">
-          <span class="inline-flex whitespace-nowrap rounded-full px-2.5 py-1 text-xs font-medium ${cor}">${rotulo}</span>
-          ${l.ultimo_erro ? `<span class="mt-1 block max-w-[12rem] truncate text-xs text-red-500" title="${esc(l.ultimo_erro)}">${esc(l.ultimo_erro)}</span>` : ''}
-        </td>
-        <td class="px-5 py-3">
-          <div class="flex justify-end gap-1.5">
-            <button type="button" data-acao="whats" data-id="${l.id}" ${l.whatsapp && !bloqueado ? '' : 'disabled'} title="Abrir conversa no seu WhatsApp"
-              class="flex items-center gap-1 rounded-lg bg-zap-500 px-2.5 py-1.5 text-xs font-semibold text-white hover:bg-zap-600 disabled:cursor-not-allowed disabled:opacity-40">${ICONE_WHATS}</button>
-            <button type="button" data-acao="enfileirar" data-id="${l.id}" ${podeEnfileirar ? '' : 'disabled'} title="Colocar no topo da fila do motor (WhatsApp + e-mail)"
-              class="flex items-center gap-1 whitespace-nowrap rounded-lg border border-slate-300 bg-white px-2.5 py-1.5 text-xs font-semibold text-vesco-600 hover:border-vesco-500 hover:bg-vesco-50 disabled:cursor-not-allowed disabled:opacity-40">${ICONE_ENVIAR} Enviar</button>
-            ${bloqueado
-              ? (l.status === 'DESCARTADO' ? `<button type="button" data-acao="reativar" data-id="${l.id}" class="rounded-lg px-2.5 py-1.5 text-xs text-slate-600 hover:bg-slate-100">Reativar</button>` : '')
-              : `<button type="button" data-acao="descartar" data-id="${l.id}" title="Tirar do funil" class="rounded-lg px-2.5 py-1.5 text-xs text-slate-500 hover:bg-red-50 hover:text-red-600">Descartar</button>`}
-          </div>
-        </td>
-      </tr>`;
-  }).join('');
-}
-
-function barra(idBarra, idTexto, feitos, limite, fila) {
-  $(idBarra).style.width = Math.min(100, limite ? (feitos / limite) * 100 : 0) + '%';
-  $(idTexto).textContent = `${feitos} / ${limite} · fila ${fila}`;
-}
-
-function chaveHtml(ligada, attrs) {
-  return `<button type="button" role="switch" aria-checked="${ligada}" ${attrs} class="chave chave-sm ${ligada ? 'bg-vesco-500' : 'bg-slate-300'}"></button>`;
-}
-
-function setConectado(ok, erro) {
-  const b = $('badgeConexao');
-  b.classList.remove('hidden');
-  b.className = `rounded-full px-2.5 py-1 text-xs font-medium sm:inline-flex ${ok ? 'bg-green-500/20 text-green-200' : 'bg-red-500/20 text-red-200'}`;
-  b.textContent = ok ? 'Motor online' : 'Motor fora do ar';
-  b.title = erro || '';
-}
-
-function mostrarTelas() {
-  const tem = !!conexao.url;
-  $('app').classList.toggle('hidden', !tem);
-  $('semConexao').classList.toggle('hidden', tem);
-  $('cfgUrl').value = conexao.url;
-  $('cfgToken').value = conexao.token;
-}
-
-/* ---------------------------------------------------------------------
-   AÇÕES
-   --------------------------------------------------------------------- */
-// WhatsApp manual: abre a conversa no SEU WhatsApp com a mensagem pronta
-function abrirWhatsApp(lead) {
-  const campanha = campanhas.find(c => c.id === lead.campanha_id);
-  const modelo = campanha?.mensagem || ajustes.msg_whatsapp || '';
-  const texto = modelo
-    .replaceAll('{empresa}', lead.nome).replaceAll('{nicho}', lead.nicho || '').replaceAll('{regiao}', lead.regiao || '');
-  window.open(`https://wa.me/${lead.whatsapp}?text=${encodeURIComponent(texto)}`, '_blank', 'noopener');
-}
-
-async function acaoLead(acao, id) {
-  const lead = leads.find(l => l.id === id);
-  if (!lead) return;
-  try {
-    if (acao === 'whats') return abrirWhatsApp(lead);
-    if (acao === 'enfileirar') {
-      await api(`/leads/${id}/enviar`, { method: 'POST', body: {} });
-      toast(`${lead.nome} foi para o topo da fila.`, 'ok');
-    }
-    if (acao === 'descartar') await api(`/leads/${id}`, { method: 'PATCH', body: { status: 'DESCARTADO' } });
-    if (acao === 'reativar') await api(`/leads/${id}`, { method: 'PATCH', body: { status: 'NOVO' } });
-    await Promise.all([carregarLeads(), carregarResumo()]);
-  } catch (err) {
-    toast(err.message, 'erro');
+async function carregarAjustes() {
+  ajustes = await api('/ajustes');
+  for (const el of $('formMensagens').elements) {
+    if (!el.name) continue;
+    if (el.type === 'checkbox') el.checked = !!ajustes[el.name];
+    else el.value = ajustes[el.name] ?? '';
   }
-}
-
-async function acaoCampanha(acao, id) {
-  try {
-    if (acao === 'rodar') {
-      await api(`/campanhas/${id}/executar`, { method: 'POST' });
-      toast('Busca iniciada.', 'info');
-    }
-    if (acao === 'ver') {
-      $('filtroCampanha').value = String(id);
-      await carregarLeads();
-      $('tbodyLeads').scrollIntoView({ behavior: 'smooth', block: 'start' });
-      return;
-    }
-    if (acao === 'excluir') {
-      if (!confirm('Excluir a campanha? Os leads continuam no funil.')) return;
-      await api(`/campanhas/${id}`, { method: 'DELETE' });
-    }
-    await carregarCampanhas();
-  } catch (err) {
-    toast(err.message, 'erro');
-  }
-}
-
-function exportarCsv() {
-  const cab = ['Empresa', 'Telefone', 'E-mail', 'Site', 'Endereço', 'Nicho', 'Região', 'Status', 'WhatsApp', 'E-mail status'];
-  const linhas = leads.map(l => [l.nome, l.telefone, l.email, l.site, l.endereco, l.nicho, l.regiao,
-    (ROTULO_LEAD[l.status] || [l.status])[0], (ROTULO_CANAL[l.whatsapp_status] || [l.whatsapp_status])[0], (ROTULO_CANAL[l.email_status] || [l.email_status])[0]]);
-  const csv = [cab, ...linhas].map(r => r.map(v => `"${String(v ?? '').replace(/"/g, '""')}"`).join(';')).join('\r\n');
-  const a = document.createElement('a');
-  a.href = URL.createObjectURL(new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8' }));
-  a.download = `leads-vesco-${new Date().toISOString().slice(0, 10)}.csv`;
-  a.click();
-  URL.revokeObjectURL(a.href);
 }
 
 /* ---------------------------------------------------------------------
@@ -674,8 +1186,24 @@ function exportarCsv() {
 function esc(s) {
   return String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 }
+const fmt = n => Number(n || 0).toLocaleString('pt-BR');
+const pct = (a, b) => b ? `${((a / b) * 100).toLocaleString('pt-BR', { maximumFractionDigits: a / b < 0.1 ? 1 : 0 })}%` : '—';
+const chaveGrupo = s => String(s || '').trim().toLowerCase();
+function dataLocal(d) {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+function amanha() { const d = new Date(); d.setDate(d.getDate() + 1); return dataLocal(d); }
 function dataCurta(iso) {
   return iso ? new Date(iso).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }) : '';
+}
+const diaCurto = ymd => ymd.slice(8, 10) + '/' + ymd.slice(5, 7);
+const dataLonga = ymd => new Date(ymd + 'T12:00:00').toLocaleDateString('pt-BR', { weekday: 'short', day: '2-digit', month: 'short' });
+function tempoAtras(iso) {
+  const s = (Date.now() - new Date(iso).getTime()) / 1000;
+  if (s < 3600) return `há ${Math.max(1, Math.round(s / 60))} min`;
+  if (s < 86400) return `há ${Math.round(s / 3600)} h`;
+  if (s < 86400 * 7) return `há ${Math.round(s / 86400)} dia(s)`;
+  return dataCurta(iso);
 }
 function diasTexto(dias) {
   const nomes = ['dom', 'seg', 'ter', 'qua', 'qui', 'sex', 'sáb'];
@@ -686,9 +1214,29 @@ function cronTexto(expr) {
   const m = /^(\d+) (\d+) \* \* (\S+)$/.exec(expr || '');
   if (!m) return `agenda: ${expr}`;
   const nomes = ['domingo', 'segunda', 'terça', 'quarta', 'quinta', 'sexta', 'sábado'];
-  const dias = m[3] === '1-5' ? 'seg a sex' : m[3] === '*' ? 'todo dia'
-    : /^[0-6]$/.test(m[3]) ? `toda ${nomes[m[3]]}` : `dias ${m[3]}`;
+  const dias = m[3] === '1-5' ? 'seg a sex' : m[3] === '*' ? 'todo dia' : /^[0-6]$/.test(m[3]) ? `toda ${nomes[m[3]]}` : `dias ${m[3]}`;
   return `${dias} às ${m[2].padStart(2, '0')}:${m[1].padStart(2, '0')}`;
+}
+function barra(idBarra, idTexto, feitos, limite, fila) {
+  $(idBarra).style.width = Math.min(100, limite ? (feitos / limite) * 100 : 0) + '%';
+  $(idTexto).textContent = `${feitos}/${limite} · fila ${fila}`;
+}
+function chaveHtml(ligada, attrs) {
+  return `<button type="button" role="switch" aria-checked="${ligada}" ${attrs} class="chave chave-sm ${ligada ? 'bg-vesco-500' : 'bg-slate-300'}"></button>`;
+}
+function setConectado(ok, erro) {
+  const b = $('badgeConexao');
+  b.className = `rounded-full px-2.5 py-1 text-xs font-medium sm:inline-flex ${ok ? 'bg-green-500/20 text-green-200' : 'bg-red-500/20 text-red-200'}`;
+  b.textContent = ok ? 'Motor online' : 'Motor fora do ar';
+  b.title = erro || '';
+}
+function mostrarTelas() {
+  const tem = !!conexao.url;
+  $('app').classList.toggle('hidden', !tem);
+  $('semConexao').classList.toggle('hidden', tem);
+  $('abas').classList.toggle('invisible', !tem);
+  $('cfgUrl').value = conexao.url;
+  $('cfgToken').value = conexao.token;
 }
 function toast(msg, tipo = 'info') {
   const cores = { ok: 'border-green-200 bg-green-50 text-green-800', erro: 'border-red-200 bg-red-50 text-red-800', info: 'border-slate-200 bg-white text-slate-700' };
@@ -696,29 +1244,37 @@ function toast(msg, tipo = 'info') {
   el.className = `toast-enter rounded-lg border px-4 py-3 text-sm shadow-lg ${cores[tipo]}`;
   el.textContent = msg;
   $('toasts').appendChild(el);
-  setTimeout(() => el.remove(), 4500);
+  setTimeout(() => el.remove(), 5000);
 }
-function lerConexao() {
-  try { return { url: '', token: '', ...JSON.parse(localStorage.getItem(CHAVE_LOCAL) || '{}') }; }
-  catch { return { url: '', token: '' }; }
+function lerJson(chave, padrao) {
+  try { return { ...padrao, ...JSON.parse(localStorage.getItem(chave) || '{}') }; } catch { return { ...padrao }; }
+}
+function gravarJson(chave, valor) {
+  try { localStorage.setItem(chave, JSON.stringify(valor)); } catch {}
 }
 const atrasar = (fn, ms) => { let t; return (...a) => { clearTimeout(t); t = setTimeout(() => fn(...a), ms); }; };
 
 /* ---------------------------------------------------------------------
    EVENTOS
    --------------------------------------------------------------------- */
-$('btnConexao').addEventListener('click', () => $('painelConexao').classList.toggle('hidden'));
+document.querySelectorAll('.aba').forEach(b => b.addEventListener('click', () => irPara(b.dataset.aba)));
+document.addEventListener('click', e => {
+  const ir = e.target.closest('[data-ir]');
+  if (ir) irPara(ir.dataset.ir);
+});
+window.addEventListener('hashchange', () => irPara(location.hash.slice(1)));
 
+$('btnConexao').addEventListener('click', () => $('painelConexao').classList.toggle('hidden'));
 $('formConexao').addEventListener('submit', async e => {
   e.preventDefault();
   conexao = { url: $('cfgUrl').value.trim().replace(/\/+$/, ''), token: $('cfgToken').value.trim() };
-  try { localStorage.setItem(CHAVE_LOCAL, JSON.stringify(conexao)); } catch {}
+  gravarJson(CHAVE_LOCAL, conexao);
   mostrarTelas();
   try {
     await Promise.all([carregarResumo(), carregarAjustes()]);
-    await atualizarTudo();
     $('painelConexao').classList.add('hidden');
     toast('Conectado ao motor.', 'ok');
+    irPara(abaAtual);
   } catch (err) {
     setConectado(false, err.message);
     toast(`Não conectou: ${err.message}`, 'erro');
@@ -735,6 +1291,24 @@ $('chaveEnvio').addEventListener('click', async () => {
   } catch (err) { toast(err.message, 'erro'); }
 });
 
+// Painel
+$('seletorPeriodo').addEventListener('click', e => {
+  const b = e.target.closest('button[data-dias]');
+  if (!b) return;
+  diasGrafico = Number(b.dataset.dias);
+  carregarPainel().catch(err => toast(err.message, 'erro'));
+});
+$('tbodyGrupos').addEventListener('click', e => {
+  const verN = e.target.closest('[data-ver-nicho]');
+  if (verN) return verLeads({ nicho: verN.dataset.verNicho });
+  const verC = e.target.closest('[data-ver-camp]');
+  if (verC) return verLeads({ campanha: Number(verC.dataset.verCamp) });
+  const tr = e.target.closest('tr[data-grupo]');
+  if (tr) { grupoAberto = grupoAberto === tr.dataset.grupo ? null : tr.dataset.grupo; renderGrupos(); }
+});
+window.addEventListener('resize', atrasar(() => { if (painel && abaAtual === 'painel') renderGraficoAtividade(painel.serie); }, 200));
+
+// Prospectar
 $('formBusca').addEventListener('submit', async e => {
   e.preventDefault();
   const btn = $('btnRastrear');
@@ -742,9 +1316,12 @@ $('formBusca').addEventListener('submit', async e => {
   try {
     const c = await api('/campanhas', {
       method: 'POST',
-      body: { nicho: $('inpNicho').value.trim(), regiao: $('inpRegiao').value.trim(), auto_envio: $('chkAuto').checked, ativa: $('chkAgenda').checked }
+      body: {
+        nicho: $('inpNicho').value.trim(), regiao: $('inpRegiao').value.trim(),
+        auto_envio: $('chkAuto').checked, ativa: $('chkAgenda').checked, gerar_ia: $('chkIA').checked
+      }
     });
-    toast(`Buscando "${c.nicho}" em ${c.regiao}…`, 'info');
+    toast($('chkIA').checked ? `Criando a mensagem com IA e buscando "${c.nicho}"…` : `Buscando "${c.nicho}" em ${c.regiao}…`, 'info');
     $('inpNicho').value = '';
     $('inpRegiao').value = '';
     await carregarCampanhas();
@@ -755,33 +1332,8 @@ $('formBusca').addEventListener('submit', async e => {
     btn.disabled = false;
   }
 });
-
-// Acompanha a busca em segundo plano até terminar e mostra os leads dela
-async function acompanharBusca(id) {
-  for (let i = 0; i < 60; i++) {
-    await new Promise(r => setTimeout(r, 3000));
-    await carregarCampanhas().catch(() => {});
-    const c = campanhas.find(x => x.id === id);
-    if (!c || c.executando) continue;
-    const r = c.ultimo_resultado || {};
-    toast(r.status === 'erro' ? `Busca falhou: ${r.erro}` : `${r.novos} leads novos (${r.com_email} com e-mail).`, r.status === 'erro' ? 'erro' : 'ok');
-    $('filtroCampanha').value = String(id);
-    await Promise.all([carregarLeads(), carregarResumo()]);
-    return;
-  }
-}
-
-$('tbodyLigacoes').addEventListener('click', e => {
-  const b = e.target.closest('button[data-lig]');
-  if (b) registrarLigacao(Number(b.dataset.id), b.dataset.lig);
-});
-$('chkLigTodas').addEventListener('change', () => carregarLigacoes().catch(err => toast(err.message, 'erro')));
-
-$('tbodyLeads').addEventListener('click', e => {
-  const b = e.target.closest('button[data-acao]');
-  if (b && !b.disabled) acaoLead(b.dataset.acao, Number(b.dataset.id));
-});
-
+document.querySelectorAll('.atalho').forEach(b =>
+  b.addEventListener('click', () => { $('inpNicho').value = b.dataset.nicho; $('inpRegiao').focus(); }));
 $('tbodyCampanhas').addEventListener('click', async e => {
   const chave = e.target.closest('button[data-camp]');
   if (chave) {
@@ -796,41 +1348,61 @@ $('tbodyCampanhas').addEventListener('click', async e => {
   if (b && !b.disabled) acaoCampanha(b.dataset.acaoCamp, Number(b.dataset.id));
 });
 
-$('filtroCampanha').addEventListener('change', () => carregarLeads().catch(err => toast(err.message, 'erro')));
-$('filtroStatus').addEventListener('change', () => carregarLeads().catch(err => toast(err.message, 'erro')));
-$('filtroBusca').addEventListener('input', atrasar(() => carregarLeads().catch(err => toast(err.message, 'erro')), 350));
-$('btnCsv').addEventListener('click', exportarCsv);
-
-document.querySelectorAll('.atalho').forEach(b =>
-  b.addEventListener('click', () => { $('inpNicho').value = b.dataset.nicho; $('inpRegiao').focus(); }));
-
-$('btnMensagens').addEventListener('click', () => {
-  $('formMensagens').classList.toggle('hidden');
-  $('setaMensagens').classList.toggle('rotate-180');
+// Modal
+$('modalCampanha').addEventListener('click', e => {
+  if (e.target === $('modalCampanha') || e.target.closest('[data-fechar]')) fecharModal();
+});
+document.addEventListener('keydown', e => { if (e.key === 'Escape' && campanhaModal) fecharModal(); });
+$('mcGerar').addEventListener('click', gerarComIA);
+$('mcSalvar').addEventListener('click', salvarModal);
+$('mcTeste').addEventListener('click', () => testeModal().catch(err => toast(err.message, 'erro')));
+$('mcWhats').addEventListener('input', contarWhats);
+$('mcUsarB').addEventListener('click', () => {
+  const atual = $('mcWhats').value;
+  $('mcWhats').value = versaoB;
+  versaoB = atual;
+  contarWhats();
+  $('mcUsarB').textContent = 'Voltar para a versão anterior';
+});
+$('mcPadrao').addEventListener('click', () => {
+  if (!confirm('Apagar as mensagens desta campanha e usar a mensagem padrão?')) return;
+  $('mcWhats').value = ''; $('mcAssunto').value = ''; $('mcCorpo').value = ''; $('mcLegenda').value = '';
+  contarWhats();
 });
 
-const CHAVE_TESTE = 'vesco_leads_teste_v1';
-try {
-  const t = JSON.parse(localStorage.getItem(CHAVE_TESTE) || '{}');
-  $('testeTelefone').value = t.telefone || '';
-  $('testeEmail').value = t.email || '';
-} catch {}
+// Funil
+['filtroCampanha', 'filtroNicho', 'filtroStatus'].forEach(id =>
+  $(id).addEventListener('change', () => carregarLeads().catch(err => toast(err.message, 'erro'))));
+$('filtroBusca').addEventListener('input', atrasar(() => carregarLeads().catch(err => toast(err.message, 'erro')), 350));
+$('btnCsv').addEventListener('click', exportarCsv);
+$('tbodyLeads').addEventListener('click', e => {
+  const b = e.target.closest('button[data-acao]');
+  if (b && !b.disabled) acaoLead(b.dataset.acao, Number(b.dataset.id));
+});
 
+// Ligações
+$('tbodyLigacoes').addEventListener('click', e => {
+  const b = e.target.closest('button[data-lig]');
+  if (b) registrarLigacao(Number(b.dataset.id), b.dataset.lig);
+});
+$('chkLigTodas').addEventListener('change', () => carregarLigacoes().catch(err => toast(err.message, 'erro')));
+
+// Mensagens
+const teste = lerJson(CHAVE_TESTE, {});
+$('testeTelefone').value = teste.telefone || '';
+$('testeEmail').value = teste.email || '';
 $('formTeste').addEventListener('submit', async e => {
   e.preventDefault();
   const telefone = $('testeTelefone').value.trim();
   const email = $('testeEmail').value.trim();
   if (!telefone && !email) return toast('Informe um WhatsApp e/ou e-mail para o teste.', 'erro');
-  try { localStorage.setItem(CHAVE_TESTE, JSON.stringify({ telefone, email })); } catch {}
-
+  gravarJson(CHAVE_TESTE, { telefone, email });
   $('btnTeste').disabled = true;
   $('txtTeste').className = 'w-full text-sm text-slate-500';
   $('txtTeste').textContent = 'Enviando…';
   try {
     const r = await api('/teste', { method: 'POST', body: { telefone, email }, timeoutMs: 60000 });
-    const linha = (canal, x) => !x ? '' : x.ok
-      ? `${canal}: enviado, confira se chegou.`
-      : `${canal}: falhou (${x.erro}).`;
+    const linha = (canal, x) => !x ? '' : x.ok ? `${canal}: enviado, confira se chegou.` : `${canal}: falhou (${x.erro}).`;
     const falhou = [r.whatsapp, r.email].some(x => x && !x.ok);
     $('txtTeste').className = `w-full text-sm ${falhou ? 'text-red-600' : 'text-green-700'}`;
     $('txtTeste').textContent = [linha('WhatsApp', r.whatsapp), linha('E-mail', r.email)].filter(Boolean).join(' ');
@@ -841,30 +1413,31 @@ $('formTeste').addEventListener('submit', async e => {
     $('btnTeste').disabled = false;
   }
 });
-
 $('formMensagens').addEventListener('submit', async e => {
   e.preventDefault();
   const dados = {};
-  for (const el of e.target.elements) {
-    if (el.name) dados[el.name] = el.type === 'checkbox' ? el.checked : el.value;
-  }
+  for (const el of e.target.elements) if (el.name) dados[el.name] = el.type === 'checkbox' ? el.checked : el.value;
   try {
     ajustes = await api('/ajustes', { method: 'PUT', body: dados });
-    toast('Mensagens salvas.', 'ok');
+    toast('Mensagem padrão salva.', 'ok');
   } catch (err) { toast(err.message, 'erro'); }
 });
 
 /* ---------------------------------------------------------------------
-   INÍCIO + atualização automática a cada 15s
+   INÍCIO + atualização automática a cada 20s
    --------------------------------------------------------------------- */
 mostrarTelas();
 if (conexao.url) {
-  carregarAjustes().catch(() => {});
-  atualizarTudo();
+  Promise.all([carregarResumo(), carregarAjustes()]).catch(err => setConectado(false, err.message));
+  irPara(location.hash.slice(1) || 'painel');
 } else {
   $('painelConexao').classList.remove('hidden');
+  irPara('painel');
 }
-setInterval(() => { if (!document.hidden) atualizarTudo(); }, 15000);
+setInterval(() => {
+  if (document.hidden || !conexao.url || campanhaModal) return;
+  carregarResumo().then(carregarAba).catch(err => setConectado(false, err.message));
+}, 20000);
 </script>
 </body>
 </html>
