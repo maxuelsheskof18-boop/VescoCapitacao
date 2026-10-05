@@ -410,7 +410,7 @@
             <div class="grid gap-5 lg:grid-cols-2">
               <label class="block"><span class="text-sm font-medium text-slate-700">Mensagem</span>
                 <textarea id="flexMensagem" rows="11" class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-vesco-500 focus:outline-none"></textarea>
-                <span class="mt-1 block text-xs text-slate-500">Variáveis: <code>{nome}</code> <code>{pedido}</code> <code>{endereco}</code> <code>{complemento}</code> <code>{cep}</code> <code>{produto}</code>. *texto* fica em negrito no WhatsApp.</span>
+                <span class="mt-1 block text-xs text-slate-500">Variáveis: <code>{nome}</code> <code>{pedido}</code> <code>{endereco}</code> <code>{complemento}</code> <code>{bairro}</code> <code>{cep}</code> <code>{produto}</code>. *texto* fica em negrito no WhatsApp.</span>
                 <label class="mt-2 flex items-center gap-2 text-sm"><input id="flexSalvarPadrao" type="checkbox" class="h-4 w-4 rounded border-slate-300" /> Salvar esta mensagem como padrão</label>
               </label>
               <div>
@@ -1590,77 +1590,121 @@ const FLEX_STATUS = {
   sem_telefone: ['Sem telefone', 'text-slate-400']
 };
 
+// Entende dois formatos de exportação:
+//  1) colunas separadas (endereco, nome, pedido, produto_completo, complemento, cep, whatsapp "&text=...")
+//  2) a linha inteira da exportação "empacotada" numa célula só:
+//     Rua X 5B, Bairro, Cidade, UF, 05763-000, Brasil,"titulo - #pedido","nome - user","",...
 function extrairFlex(linhas) {
   const txt = v => (v === null || v === undefined ? '' : String(v));
   const espacos = s => txt(s).replace(/\s+/g, ' ').trim();
   const norm = s => txt(s).normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim().toLowerCase();
+  const decodificar = s => { try { return decodeURIComponent(s.replace(/\+/g, ' ')); } catch { return s; } };
+
+  // Ordem dos campos na exportação (depois do endereço)
+  const ORDEM_EXPORT = ['titulo', 'nome_lalamove', 'telefone', 'complemento_lalamove', 'complemento', 'produto_completo',
+    'ordem', 'nome', 'username', 'pedido', 'nome_loja', 'frete', 'cep', 'quem_recebe', 'whatsapp'];
 
   // Cabeçalho: a primeira linha que tenha alguma coluna conhecida
   const conhecidas = ['telefone', 'nome', 'pedido', 'endereco', 'produto_completo', 'whatsapp', 'link', 'cep', 'complemento'];
-  let iCab = linhas.findIndex(l => l.some(c => conhecidas.includes(norm(c))));
-  if (iCab < 0) iCab = -1;
+  const iCab = linhas.findIndex(l => (l || []).some(c => conhecidas.includes(norm(c))));
   const cab = iCab >= 0 ? linhas[iCab].map(norm) : [];
-  const col = nome => cab.indexOf(nome);
 
-  const decodificar = s => { try { return decodeURIComponent(s.replace(/\+/g, ' ')); } catch { return s; } };
+  // "Rua X 5B" -> "Rua X Nº: 5B"
+  const formatarRua = rua => {
+    const m = espacos(rua).match(/^(.*\D)\s+(\d+\w*)$/);
+    return m ? `${m[1]} Nº: ${m[2]}` : espacos(rua);
+  };
+
+  // Lê a célula empacotada: endereço antes do 1º ,"  e depois os campos entre aspas
+  function lerEmpacotada(c) {
+    const i = c.indexOf(',"');
+    const enderecoCompleto = c.slice(0, i);
+    const campos = [];
+    const re = /"((?:[^"]|"")*)"/g;
+    let m;
+    while ((m = re.exec(c.slice(i + 1)))) campos.push(m[1].replace(/""/g, '"'));
+    const mapa = {};
+    if (campos.length >= 10 && /#\d{13,}/.test(campos[9])) ORDEM_EXPORT.forEach((k, j) => { mapa[k] = campos[j] ?? ''; });
+    return { enderecoCompleto, mapa, campos };
+  }
+
   const itens = [];
-
   for (const linha of linhas.slice(iCab + 1)) {
-    const celulas = linha.map(txt);
+    const celulas = (linha || []).map(txt);
     if (!celulas.some(c => c.trim())) continue;
+
+    // Valor de um campo: coluna com esse cabeçalho ou campo da célula empacotada
+    const empacotada = celulas.find(c => c.includes(',"') && /#\d{13,}/.test(c));
+    const pac = empacotada ? lerEmpacotada(empacotada) : null;
+    const campo = nome => {
+      const i = cab.indexOf(nome);
+      if (i >= 0 && txt(celulas[i]).trim()) return celulas[i];
+      return pac?.mapa[nome] || '';
+    };
 
     // Mensagem já montada (link do WhatsApp ou coluna "&text=...")
     const comTexto = celulas.find(c => /text=/.test(c));
     const msg = comTexto ? decodificar(comTexto.slice(comTexto.indexOf('text=') + 5)) : '';
     const daMsg = re => { const m = msg.match(re); return m ? espacos(m[1]) : ''; };
 
-    // Telefone: coluna TELEFONE com dígitos, senão o phone= do link, senão a 1ª célula que pareça telefone
+    // Telefone: coluna TELEFONE, senão o phone= do link, senão a 1ª célula que pareça telefone
     let telefone = '';
-    const cTel = col('telefone');
-    if (cTel >= 0 && /\d{8,}/.test(celulas[cTel].replace(/\D/g, ''))) telefone = celulas[cTel];
+    const cTel = cab.indexOf('telefone');
+    if (cTel >= 0 && txt(celulas[cTel]).replace(/\D/g, '').length >= 10) telefone = celulas[cTel];
     if (!telefone) { const link = celulas.find(c => /phone=\d{10,}/.test(c)); if (link) telefone = link.match(/phone=(\d{10,})/)[1]; }
     if (!telefone) telefone = celulas.find(c => /^\s*\+?[\d\s().-]{10,16}\s*$/.test(c) && c.replace(/\D/g, '').length >= 10) || '';
+    if (telefone.replace(/\D/g, '').length < 10) telefone = '';
 
-    // Pedido
-    let pedido = daMsg(/\*Pedido:\*\s*([\d]+)/);
-    if (!pedido) { const c = celulas.find(c => /#?\d{13,}/.test(c)); if (c) pedido = c.match(/#?(\d{13,})/)[1]; }
+    // Pedido: da mensagem, senão o número com "#" (nunca o telefone do link)
+    let pedido = daMsg(/\*Pedido:\*\s*(\d+)/);
+    if (!pedido) { const m = (campo('pedido') + ' ' + celulas.join(' ')).match(/#(\d{13,})/); if (m) pedido = m[1]; }
+    if (!pedido) { const m = txt(campo('pedido')).match(/(\d{13,})/); if (m) pedido = m[1]; }
 
-    // Nome
+    // Nome do comprador
     let nome = daMsg(/Ol[aá]\s*\*([^*]+)\*/);
-    if (!nome && col('nome') >= 0) nome = espacos(celulas[col('nome')]);
+    if (!nome) nome = espacos(campo('nome'));
+    if (!nome && campo('nome_lalamove')) nome = espacos(campo('nome_lalamove').split(' - ')[0]);
 
-    // Endereço: da mensagem, senão "Rua X 91 04110030" -> "Rua X Nº: 91"
+    // Endereço e CEP
     let endereco = daMsg(/\*Endere[cç]o de Entrega\*:\s*([^\n]+)/);
     let cep = '';
-    if (col('endereco') >= 0) {
-      const bruto = espacos(celulas[col('endereco')]);
+    let bairro = '';
+    if (pac && pac.enderecoCompleto) {
+      // "Rua Sancho Garcia 5B, Jardim Piracuama, São Paulo, São Paulo, 05763-000, Brasil"
+      const partes = pac.enderecoCompleto.split(',').map(espacos);
+      if (!endereco) endereco = formatarRua(partes[0]);
+      bairro = partes[1] || '';
+      const mCep = pac.enderecoCompleto.match(/(\d{5})-?(\d{3})/);
+      if (mCep) cep = mCep[1] + mCep[2];
+    } else if (campo('endereco')) {
+      // "Rua Dona Carolina 91 04110030"
+      const bruto = espacos(campo('endereco'));
       const m = bruto.match(/^(.*?)\s+(\S+)\s+(\d{8})$/);
       if (m) { cep = m[3]; if (!endereco) endereco = `${m[1]} Nº: ${m[2]}`; }
       else if (!endereco) endereco = bruto;
     }
-    if (!cep && col('cep') >= 0) cep = celulas[col('cep')].replace(/\D/g, '').padStart(8, '0');
+    if (!cep && campo('cep')) cep = campo('cep').replace(/\D/g, '').padStart(8, '0');
 
     // Produto
     let produto = daMsg(/\*Produto\*:\s*([^\n]+)/);
-    if (!produto && col('produto_completo') >= 0) {
-      const m = celulas[col('produto_completo')].match(/\d+_(.+?)_Q:/);
-      produto = espacos(m ? m[1] : celulas[col('produto_completo')]);
+    if (!produto && campo('produto_completo')) {
+      const m = campo('produto_completo').match(/\d+_(.+?)_Q:/);
+      produto = espacos(m ? m[1] : campo('produto_completo'));
     }
 
-    // Complemento ("Ap 23 - CEP ... - Bairro - Cidade")
-    // (sem cabeçalho: a célula que tem " - CEP 00000000 - ")
-    const cComp = col('complemento') >= 0 ? celulas[col('complemento')] : (celulas.find(c => /(^|-)\s*CEP\s*\d{8}/i.test(c) && !/\|/.test(c)) || '');
-    const mCep = cComp.match(/CEP\s*(\d{8})/i);
+    // Complemento: coluna "complemento" ("Ap 23 - CEP ... - Bairro"), senão o começo do complemento_lalamove ("Ap 23|#pedido|...")
+    let compBruto = campo('complemento');
+    if (!compBruto && !pac) compBruto = celulas.find(c => /(^|-)\s*CEP\s*\d{8}/i.test(c) && !/\|/.test(c)) || '';
+    const mCep = compBruto.match(/CEP\s*(\d{8})/i);
     if (!cep && mCep) cep = mCep[1];
-    const complemento = espacos(cComp.split(/\s*-?\s*CEP\b/i)[0]);
+    let complemento = espacos(compBruto.split(/\s*-?\s*CEP\b/i)[0]);
+    if (!complemento && campo('complemento_lalamove')) complemento = espacos(campo('complemento_lalamove').split('|')[0]);
 
-    if (telefone.replace(/\D/g, '').length < 10) telefone = '';
     if (!pedido && !nome) continue;
-    itens.push({ telefone: espacos(telefone), nome, pedido, endereco, complemento, cep, produto });
+    itens.push({ telefone: espacos(telefone), nome, pedido, endereco, complemento, cep, bairro, produto });
   }
   return itens;
 }
-
 
 function carregarSheetJS() {
   if (window.XLSX) return Promise.resolve();
@@ -1696,7 +1740,7 @@ async function lerPlanilha(arquivo) {
 function montarFlex(modelo, i) {
   return String(modelo || '')
     .replaceAll('{nome}', i.nome || '').replaceAll('{pedido}', i.pedido || '').replaceAll('{endereco}', i.endereco || '')
-    .replaceAll('{complemento}', i.complemento || '').replaceAll('{cep}', i.cep || '').replaceAll('{produto}', i.produto || '');
+    .replaceAll('{complemento}', i.complemento || '').replaceAll('{cep}', i.cep || '').replaceAll('{bairro}', i.bairro || '').replaceAll('{produto}', i.produto || '');
 }
 
 // *negrito* do WhatsApp na prévia
