@@ -71,6 +71,9 @@
       <button class="aba flex items-center gap-2 border-b-2 border-transparent px-3 py-2.5 font-medium text-blue-200 hover:text-white" data-aba="ligacoes" role="tab">
         Ligações <span id="badgeLigar" class="hidden rounded-full bg-amber-400 px-1.5 text-xs font-semibold text-amber-950 num"></span>
       </button>
+      <button class="aba flex items-center gap-2 border-b-2 border-transparent px-3 py-2.5 font-medium text-blue-200 hover:text-white" data-aba="flex" role="tab">
+        Flex <span id="badgeFlex" class="hidden rounded-full bg-amber-400 px-1.5 text-xs font-semibold text-amber-950 num"></span>
+      </button>
       <button class="aba border-b-2 border-transparent px-3 py-2.5 font-medium text-blue-200 hover:text-white" data-aba="mensagens" role="tab">Mensagens</button>
     </nav>
   </header>
@@ -384,6 +387,106 @@
       <!-- =================================================================
            ABA: MENSAGENS
            ================================================================= -->
+      <!-- =================================================================
+           ABA: FLEX (confirmação de endereço das vendas Mercado Livre)
+           ================================================================= -->
+      <div data-painel="flex" class="hidden space-y-6">
+        <section class="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+          <h2 class="font-semibold">Confirmar endereço dos pedidos Flex</h2>
+          <p class="mb-4 text-sm text-slate-500">Envie a planilha: o sistema pega nome, pedido, endereço, produto e telefone de cada linha e manda a confirmação pelo WhatsApp. As respostas aparecem aqui embaixo.</p>
+          <label id="flexDrop" class="flex cursor-pointer flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed border-slate-300 px-4 py-8 text-center hover:border-vesco-500 hover:bg-vesco-50">
+            <svg class="h-8 w-8 text-slate-400" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 16V4m0 0l-4 4m4-4l4 4M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2"/></svg>
+            <span class="text-sm font-medium text-slate-700">Clique para escolher a planilha (.xlsx, .xls ou .csv)</span>
+            <span id="flexArquivoNome" class="text-xs text-slate-500">ou arraste o arquivo aqui</span>
+            <input id="flexArquivo" type="file" accept=".xlsx,.xls,.csv" class="hidden" />
+          </label>
+
+          <div id="flexPrevia" class="mt-5 hidden space-y-4">
+            <div class="flex flex-wrap items-center gap-3">
+              <label class="text-sm text-slate-700">Aba da planilha:
+                <select id="flexAba" class="ml-1 rounded-lg border border-slate-300 px-2 py-1.5 text-sm"></select></label>
+              <span id="flexResumo" class="text-sm text-slate-600"></span>
+            </div>
+            <div class="grid gap-5 lg:grid-cols-2">
+              <label class="block"><span class="text-sm font-medium text-slate-700">Mensagem</span>
+                <textarea id="flexMensagem" rows="11" class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-vesco-500 focus:outline-none"></textarea>
+                <span class="mt-1 block text-xs text-slate-500">Variáveis: <code>{nome}</code> <code>{pedido}</code> <code>{endereco}</code> <code>{complemento}</code> <code>{cep}</code> <code>{produto}</code>. *texto* fica em negrito no WhatsApp.</span>
+                <label class="mt-2 flex items-center gap-2 text-sm"><input id="flexSalvarPadrao" type="checkbox" class="h-4 w-4 rounded border-slate-300" /> Salvar esta mensagem como padrão</label>
+              </label>
+              <div>
+                <p class="mb-1 text-sm font-medium text-slate-700">Como chega para o 1º cliente</p>
+                <div class="rounded-lg bg-[#e5ddd5] p-4">
+                  <div id="flexBolha" class="max-w-sm whitespace-pre-wrap rounded-lg bg-[#dcf8c6] px-3 py-2 text-sm text-slate-800 shadow-sm"></div>
+                </div>
+              </div>
+            </div>
+            <div class="max-h-80 overflow-auto rounded-lg border border-slate-200">
+              <table class="w-full text-left text-xs">
+                <thead class="sticky top-0 bg-slate-50 uppercase tracking-wide text-slate-500">
+                  <tr><th class="px-3 py-2">Telefone</th><th class="px-3 py-2">Nome</th><th class="px-3 py-2">Pedido</th><th class="px-3 py-2">Endereço</th><th class="px-3 py-2">Produto</th></tr>
+                </thead>
+                <tbody id="flexTabelaPrevia" class="divide-y divide-slate-100"></tbody>
+              </table>
+            </div>
+            <div class="flex flex-wrap justify-end gap-2">
+              <button id="flexCancelar" type="button" class="rounded-lg px-4 py-2 text-sm text-slate-600 hover:bg-slate-100">Cancelar</button>
+              <button id="flexSalvar" type="button" class="rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100">Salvar sem enviar</button>
+              <button id="flexEnviar" type="button" class="rounded-lg bg-zap-500 px-5 py-2 text-sm font-semibold text-white hover:bg-zap-600">Enviar confirmações</button>
+            </div>
+          </div>
+        </section>
+
+        <section class="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
+          <div class="border-b border-slate-200 px-5 py-4">
+            <h2 class="font-semibold">Planilhas enviadas</h2>
+            <p class="text-sm text-slate-500">As confirmações saem uma a cada 40s a 2min, das 7h às 21h, todos os dias, antes da prospecção.</p>
+          </div>
+          <div class="overflow-x-auto">
+            <table class="tabela w-full text-left text-sm">
+              <thead class="bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
+                <tr>
+                  <th class="px-5 py-3 font-medium">Planilha</th>
+                  <th class="px-3 py-3 font-medium">Envio</th>
+                  <th class="px-3 py-3 text-right font-medium">Confirmaram</th>
+                  <th class="px-3 py-3 text-right font-medium">Atenção</th>
+                  <th class="px-3 py-3 text-right font-medium">Sem contato</th>
+                  <th class="px-5 py-3 text-right font-medium">Ações</th>
+                </tr>
+              </thead>
+              <tbody id="tbodyLotes" class="divide-y divide-slate-100"></tbody>
+            </table>
+          </div>
+          <p id="semLotes" class="hidden px-5 py-8 text-center text-sm text-slate-500">Nenhuma planilha enviada ainda.</p>
+        </section>
+
+        <section id="secLote" class="hidden overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
+          <div class="flex flex-wrap items-end justify-between gap-3 border-b border-slate-200 px-5 py-4">
+            <div>
+              <h2 id="loteTitulo" class="font-semibold">Pedidos</h2>
+              <p class="text-sm text-slate-500">"Atenção" = o cliente respondeu algo diferente de confirmar (ex.: endereço errado). Fale com ele.</p>
+            </div>
+            <div class="flex flex-wrap items-center gap-2">
+              <div id="loteFiltros" class="flex rounded-lg border border-slate-200 p-0.5 text-xs"></div>
+              <button id="loteCsv" type="button" class="rounded-lg border border-slate-300 px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50">CSV</button>
+            </div>
+          </div>
+          <div class="overflow-x-auto">
+            <table class="w-full text-left text-sm">
+              <thead class="bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
+                <tr>
+                  <th class="px-5 py-3 font-medium">Cliente / pedido</th>
+                  <th class="px-3 py-3 font-medium">Endereço</th>
+                  <th class="px-3 py-3 font-medium">Envio</th>
+                  <th class="px-3 py-3 font-medium">Resposta</th>
+                  <th class="px-5 py-3 text-right font-medium"></th>
+                </tr>
+              </thead>
+              <tbody id="tbodyLoteItens" class="divide-y divide-slate-100"></tbody>
+            </table>
+          </div>
+        </section>
+      </div>
+
       <div data-painel="mensagens" class="hidden space-y-6">
         <section class="rounded-xl border border-slate-200 bg-white shadow-sm">
           <div class="border-b border-slate-200 px-5 py-4">
@@ -594,7 +697,7 @@ async function api(caminho, { method = 'GET', body, timeoutMs = 15000 } = {}) {
    ABAS
    --------------------------------------------------------------------- */
 function irPara(aba) {
-  abaAtual = ['painel', 'prospectar', 'funil', 'ligacoes', 'mensagens'].includes(aba) ? aba : 'painel';
+  abaAtual = ['painel', 'prospectar', 'funil', 'ligacoes', 'flex', 'mensagens'].includes(aba) ? aba : 'painel';
   document.querySelectorAll('[data-painel]').forEach(el => el.classList.toggle('hidden', el.dataset.painel !== abaAtual));
   document.querySelectorAll('.aba').forEach(b => b.setAttribute('aria-selected', String(b.dataset.aba === abaAtual)));
   if (location.hash !== '#' + abaAtual) history.replaceState(null, '', '#' + abaAtual);
@@ -608,6 +711,7 @@ async function carregarAba() {
   if (abaAtual === 'funil') { if (!campanhas.length) await carregarCampanhas(); await carregarLeads(); }
   if (abaAtual === 'ligacoes') await carregarLigacoes();
   if (abaAtual === 'mensagens') renderProtecao();
+  if (abaAtual === 'flex') await carregarFlex();
 }
 
 /* ---------------------------------------------------------------------
@@ -1466,6 +1570,312 @@ function renderProtecao() {
       pr.pausa ? `até ${new Date(pr.pausa.ate).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}` : `conexão: ${pr.conexao || '—'}`);
 }
 
+/* ---------------------------------------------------------------------
+   ABA FLEX
+   --------------------------------------------------------------------- */
+let flexPlanilha = null;   // { nome, abas: { [nome]: itens[] } }
+let flexItens = [];
+let lotes = [];
+let loteAberto = null;
+let loteItens = [];
+let loteFiltro = 'todos';
+
+const FLEX_STATUS = {
+  rascunho:     ['Não enviado', 'text-slate-500'],
+  fila:         ['Na fila', 'text-amber-600'],
+  enviando:     ['Enviando…', 'text-amber-600'],
+  enviado:      ['Enviado', 'text-green-700'],
+  falha:        ['Falhou', 'text-red-600'],
+  sem_whatsapp: ['Sem WhatsApp', 'text-slate-400'],
+  sem_telefone: ['Sem telefone', 'text-slate-400']
+};
+
+function extrairFlex(linhas) {
+  const txt = v => (v === null || v === undefined ? '' : String(v));
+  const espacos = s => txt(s).replace(/\s+/g, ' ').trim();
+  const norm = s => txt(s).normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim().toLowerCase();
+
+  // Cabeçalho: a primeira linha que tenha alguma coluna conhecida
+  const conhecidas = ['telefone', 'nome', 'pedido', 'endereco', 'produto_completo', 'whatsapp', 'link', 'cep', 'complemento'];
+  let iCab = linhas.findIndex(l => l.some(c => conhecidas.includes(norm(c))));
+  if (iCab < 0) iCab = -1;
+  const cab = iCab >= 0 ? linhas[iCab].map(norm) : [];
+  const col = nome => cab.indexOf(nome);
+
+  const decodificar = s => { try { return decodeURIComponent(s.replace(/\+/g, ' ')); } catch { return s; } };
+  const itens = [];
+
+  for (const linha of linhas.slice(iCab + 1)) {
+    const celulas = linha.map(txt);
+    if (!celulas.some(c => c.trim())) continue;
+
+    // Mensagem já montada (link do WhatsApp ou coluna "&text=...")
+    const comTexto = celulas.find(c => /text=/.test(c));
+    const msg = comTexto ? decodificar(comTexto.slice(comTexto.indexOf('text=') + 5)) : '';
+    const daMsg = re => { const m = msg.match(re); return m ? espacos(m[1]) : ''; };
+
+    // Telefone: coluna TELEFONE com dígitos, senão o phone= do link, senão a 1ª célula que pareça telefone
+    let telefone = '';
+    const cTel = col('telefone');
+    if (cTel >= 0 && /\d{8,}/.test(celulas[cTel].replace(/\D/g, ''))) telefone = celulas[cTel];
+    if (!telefone) { const link = celulas.find(c => /phone=\d{10,}/.test(c)); if (link) telefone = link.match(/phone=(\d{10,})/)[1]; }
+    if (!telefone) telefone = celulas.find(c => /^\s*\+?[\d\s().-]{10,16}\s*$/.test(c) && c.replace(/\D/g, '').length >= 10) || '';
+
+    // Pedido
+    let pedido = daMsg(/\*Pedido:\*\s*([\d]+)/);
+    if (!pedido) { const c = celulas.find(c => /#?\d{13,}/.test(c)); if (c) pedido = c.match(/#?(\d{13,})/)[1]; }
+
+    // Nome
+    let nome = daMsg(/Ol[aá]\s*\*([^*]+)\*/);
+    if (!nome && col('nome') >= 0) nome = espacos(celulas[col('nome')]);
+
+    // Endereço: da mensagem, senão "Rua X 91 04110030" -> "Rua X Nº: 91"
+    let endereco = daMsg(/\*Endere[cç]o de Entrega\*:\s*([^\n]+)/);
+    let cep = '';
+    if (col('endereco') >= 0) {
+      const bruto = espacos(celulas[col('endereco')]);
+      const m = bruto.match(/^(.*?)\s+(\S+)\s+(\d{8})$/);
+      if (m) { cep = m[3]; if (!endereco) endereco = `${m[1]} Nº: ${m[2]}`; }
+      else if (!endereco) endereco = bruto;
+    }
+    if (!cep && col('cep') >= 0) cep = celulas[col('cep')].replace(/\D/g, '').padStart(8, '0');
+
+    // Produto
+    let produto = daMsg(/\*Produto\*:\s*([^\n]+)/);
+    if (!produto && col('produto_completo') >= 0) {
+      const m = celulas[col('produto_completo')].match(/\d+_(.+?)_Q:/);
+      produto = espacos(m ? m[1] : celulas[col('produto_completo')]);
+    }
+
+    // Complemento ("Ap 23 - CEP ... - Bairro - Cidade")
+    // (sem cabeçalho: a célula que tem " - CEP 00000000 - ")
+    const cComp = col('complemento') >= 0 ? celulas[col('complemento')] : (celulas.find(c => /(^|-)\s*CEP\s*\d{8}/i.test(c) && !/\|/.test(c)) || '');
+    const mCep = cComp.match(/CEP\s*(\d{8})/i);
+    if (!cep && mCep) cep = mCep[1];
+    const complemento = espacos(cComp.split(/\s*-?\s*CEP\b/i)[0]);
+
+    if (telefone.replace(/\D/g, '').length < 10) telefone = '';
+    if (!pedido && !nome) continue;
+    itens.push({ telefone: espacos(telefone), nome, pedido, endereco, complemento, cep, produto });
+  }
+  return itens;
+}
+
+
+function carregarSheetJS() {
+  if (window.XLSX) return Promise.resolve();
+  return new Promise((ok, erro) => {
+    const s = document.createElement('script');
+    s.src = 'https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js';
+    s.onload = ok;
+    s.onerror = () => erro(new Error('Não consegui carregar o leitor de planilhas. Confira a internet.'));
+    document.head.appendChild(s);
+  });
+}
+
+async function lerPlanilha(arquivo) {
+  await carregarSheetJS();
+  const wb = XLSX.read(await arquivo.arrayBuffer(), { type: 'array' });
+  const abas = {};
+  for (const nome of wb.SheetNames) {
+    const linhas = XLSX.utils.sheet_to_json(wb.Sheets[nome], { header: 1, defval: null, raw: false });
+    abas[nome] = extrairFlex(linhas);
+  }
+  flexPlanilha = { nome: arquivo.name, abas };
+  // escolhe a aba com mais pedidos com telefone
+  const melhor = Object.keys(abas).sort((a, b) =>
+    abas[b].filter(i => i.telefone).length - abas[a].filter(i => i.telefone).length || abas[b].length - abas[a].length)[0];
+  $('flexAba').innerHTML = Object.keys(abas).map(n => `<option value="${esc(n)}">${esc(n)} (${abas[n].length} pedidos, ${abas[n].filter(i => i.telefone).length} com telefone)</option>`).join('');
+  $('flexAba').value = melhor;
+  $('flexArquivoNome').textContent = arquivo.name;
+  if (!$('flexMensagem').value) $('flexMensagem').value = ajustes.flex_mensagem || '';
+  selecionarAbaFlex();
+  $('flexPrevia').classList.remove('hidden');
+}
+
+function montarFlex(modelo, i) {
+  return String(modelo || '')
+    .replaceAll('{nome}', i.nome || '').replaceAll('{pedido}', i.pedido || '').replaceAll('{endereco}', i.endereco || '')
+    .replaceAll('{complemento}', i.complemento || '').replaceAll('{cep}', i.cep || '').replaceAll('{produto}', i.produto || '');
+}
+
+// *negrito* do WhatsApp na prévia
+const negritoWhats = t => esc(t).replace(/\*([^*\n]+)\*/g, '<b>$1</b>');
+
+function selecionarAbaFlex() {
+  flexItens = flexPlanilha.abas[$('flexAba').value] || [];
+  const comTel = flexItens.filter(i => i.telefone).length;
+  $('flexResumo').innerHTML = `<b class="num">${flexItens.length}</b> pedidos · <b class="num text-green-700">${comTel}</b> com telefone` +
+    (flexItens.length - comTel ? ` · <b class="num text-amber-700">${flexItens.length - comTel}</b> sem telefone (não serão enviados)` : '');
+  $('flexEnviar').textContent = `Enviar confirmações (${comTel})`;
+  $('flexEnviar').disabled = !comTel;
+  $('flexTabelaPrevia').innerHTML = flexItens.map(i => `
+    <tr class="${i.telefone ? '' : 'bg-amber-50/60 text-slate-400'}">
+      <td class="px-3 py-1.5 num">${esc(i.telefone || 'sem telefone')}</td>
+      <td class="px-3 py-1.5">${esc(i.nome)}</td>
+      <td class="px-3 py-1.5 num">${esc(i.pedido)}</td>
+      <td class="px-3 py-1.5">${esc(i.endereco)}${i.complemento ? ` <span class="text-slate-400">· ${esc(i.complemento)}</span>` : ''}</td>
+      <td class="max-w-[16rem] truncate px-3 py-1.5" title="${esc(i.produto)}">${esc(i.produto)}</td>
+    </tr>`).join('');
+  atualizarBolhaFlex();
+}
+
+function atualizarBolhaFlex() {
+  const primeiro = flexItens.find(i => i.telefone) || flexItens[0];
+  $('flexBolha').innerHTML = primeiro ? negritoWhats(montarFlex($('flexMensagem').value, primeiro)) : '';
+}
+
+function limparPreviaFlex() {
+  flexPlanilha = null; flexItens = [];
+  $('flexArquivo').value = '';
+  $('flexArquivoNome').textContent = 'ou arraste o arquivo aqui';
+  $('flexPrevia').classList.add('hidden');
+}
+
+async function criarLoteFlex(iniciar) {
+  if (!flexItens.length) return;
+  if (iniciar && !confirm(`Enviar a confirmação para ${flexItens.filter(i => i.telefone).length} cliente(s) pelo WhatsApp?`)) return;
+  try {
+    if ($('flexSalvarPadrao').checked) ajustes = await api('/ajustes', { method: 'PUT', body: { flex_mensagem: $('flexMensagem').value } });
+    const r = await api('/flex/lotes', {
+      method: 'POST', timeoutMs: 60000,
+      body: { nome_arquivo: `${flexPlanilha.nome} · ${$('flexAba').value}`, mensagem: $('flexMensagem').value, itens: flexItens, iniciar }
+    });
+    toast(`${r.criados} pedido(s) ${iniciar ? 'na fila de envio' : 'salvos'}` + (r.duplicados ? ` · ${r.duplicados} já estavam em outra planilha (ignorados)` : ''), 'ok');
+    limparPreviaFlex();
+    await carregarFlex();
+    abrirLote(r.lote.id);
+  } catch (err) {
+    toast(err.message, 'erro');
+  }
+}
+
+async function carregarFlex() {
+  lotes = await api('/flex/lotes');
+  renderLotes();
+  if (loteAberto) await carregarLoteItens();
+}
+
+function renderLotes() {
+  const atencao = lotes.reduce((t, l) => t + l.atencao, 0);
+  $('badgeFlex').textContent = atencao;
+  $('badgeFlex').classList.toggle('hidden', !atencao);
+  $('semLotes').classList.toggle('hidden', lotes.length > 0);
+  $('tbodyLotes').innerHTML = lotes.map(l => {
+    const comContato = l.total - l.sem_contato;
+    const situacao = l.rascunho ? '<span class="text-slate-500">Não enviado</span>'
+      : l.fila ? (l.pausado ? '<span class="font-medium text-slate-600">Pausado</span>' : '<span class="font-medium text-sky-700">Enviando…</span>')
+      : '<span class="font-medium text-green-700">Concluído</span>';
+    return `
+      <tr class="hover:bg-slate-50/70 ${loteAberto === l.id ? 'bg-vesco-50/50' : ''}">
+        <td class="px-5 py-3"><p class="max-w-xs truncate font-medium text-slate-900" title="${esc(l.nome_arquivo || '')}">${esc(l.nome_arquivo || 'Planilha')}</p><p class="text-xs text-slate-500">${dataCurta(l.criado_em)} · ${l.total} pedidos</p></td>
+        <td class="px-3 py-3">
+          <div class="flex items-center gap-2">
+            <div class="h-2 w-24 rounded-full bg-slate-100"><div class="h-2 rounded-full bg-zap-500" style="width:${comContato ? (l.enviados / comContato) * 100 : 0}%"></div></div>
+            <span class="text-xs text-slate-600 num">${l.enviados}/${comContato}</span>
+          </div>
+          <span class="text-xs">${situacao}</span>
+        </td>
+        <td class="px-3 py-3 text-right font-semibold text-green-700 num">${l.confirmados}</td>
+        <td class="px-3 py-3 text-right num">${l.atencao ? `<span class="rounded-full bg-amber-100 px-2 py-0.5 text-xs font-semibold text-amber-800">${l.atencao}</span>` : '<span class="text-slate-400">0</span>'}</td>
+        <td class="px-3 py-3 text-right text-slate-500 num">${l.sem_contato}${l.falhas ? ` <span class="text-red-600">· ${l.falhas} falha(s)</span>` : ''}</td>
+        <td class="px-5 py-3">
+          <div class="flex justify-end gap-1">
+            <button type="button" data-lote="ver" data-id="${l.id}" class="rounded-lg px-2.5 py-1.5 text-xs font-medium text-vesco-600 hover:bg-vesco-50">Ver</button>
+            ${l.rascunho ? `<button type="button" data-lote="iniciar" data-id="${l.id}" class="rounded-lg px-2.5 py-1.5 text-xs font-semibold text-zap-600 hover:bg-green-50">Enviar</button>` : ''}
+            ${l.fila && !l.pausado ? `<button type="button" data-lote="pausar" data-id="${l.id}" class="rounded-lg px-2.5 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-100">Pausar</button>` : ''}
+            ${l.fila && l.pausado ? `<button type="button" data-lote="retomar" data-id="${l.id}" class="rounded-lg px-2.5 py-1.5 text-xs font-medium text-sky-700 hover:bg-sky-50">Retomar</button>` : ''}
+            <button type="button" data-lote="excluir" data-id="${l.id}" class="rounded-lg px-2.5 py-1.5 text-xs font-medium text-red-600 hover:bg-red-50">Excluir</button>
+          </div>
+        </td>
+      </tr>`;
+  }).join('');
+}
+
+async function acaoLote(acao, id) {
+  try {
+    if (acao === 'ver') return abrirLote(id);
+    if (acao === 'iniciar') {
+      if (!confirm('Enviar as confirmações desta planilha?')) return;
+      const r = await api(`/flex/lotes/${id}/iniciar`, { method: 'POST' });
+      toast(`${r.enfileirados} pedido(s) na fila de envio.`, 'ok');
+    }
+    if (acao === 'pausar') await api(`/flex/lotes/${id}/pausar`, { method: 'POST' });
+    if (acao === 'retomar') await api(`/flex/lotes/${id}/retomar`, { method: 'POST' });
+    if (acao === 'excluir') {
+      if (!confirm('Excluir esta planilha e o histórico de envios dela?')) return;
+      await api(`/flex/lotes/${id}`, { method: 'DELETE' });
+      if (loteAberto === id) { loteAberto = null; $('secLote').classList.add('hidden'); }
+    }
+    await carregarFlex();
+  } catch (err) {
+    toast(err.message, 'erro');
+  }
+}
+
+async function abrirLote(id) {
+  loteAberto = id;
+  loteFiltro = 'todos';
+  await carregarLoteItens();
+  renderLotes();
+  $('secLote').classList.remove('hidden');
+  $('secLote').scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+async function carregarLoteItens() {
+  loteItens = await api(`/flex/lotes/${loteAberto}/itens`);
+  renderLoteItens();
+}
+
+function renderLoteItens() {
+  const l = lotes.find(x => x.id === loteAberto);
+  $('loteTitulo').textContent = l ? `Pedidos · ${l.nome_arquivo || 'Planilha'}` : 'Pedidos';
+  const filtros = [
+    ['todos', 'Todos', () => true],
+    ['atencao', 'Atenção', i => i.resposta_status === 'atencao'],
+    ['confirmou', 'Confirmaram', i => i.resposta_status === 'confirmou'],
+    ['sem_resposta', 'Sem resposta', i => i.status === 'enviado' && !i.resposta_status],
+    ['problema', 'Não enviados', i => ['falha', 'sem_whatsapp', 'sem_telefone'].includes(i.status)]
+  ];
+  $('loteFiltros').innerHTML = filtros.map(([k, rot, fn]) =>
+    `<button type="button" data-filtro="${k}" class="rounded-md px-2.5 py-1 font-medium ${loteFiltro === k ? 'bg-vesco-500 text-white' : 'text-slate-600 hover:bg-slate-100'}">${rot} <span class="num opacity-75">${loteItens.filter(fn).length}</span></button>`).join('');
+  const filtro = filtros.find(f => f[0] === loteFiltro)[2];
+  $('tbodyLoteItens').innerHTML = loteItens.filter(filtro).map(i => {
+    const [rot, cor] = FLEX_STATUS[i.status] || [i.status, 'text-slate-500'];
+    const resposta = i.resposta_status === 'confirmou'
+      ? `<span class="rounded-full bg-green-100 px-2 py-0.5 text-xs font-semibold text-green-800">Confirmou</span>`
+      : i.resposta_status === 'atencao'
+        ? `<span class="rounded-full bg-amber-100 px-2 py-0.5 text-xs font-semibold text-amber-800">Atenção</span>`
+        : '<span class="text-xs text-slate-400">—</span>';
+    return `
+      <tr class="${i.resposta_status === 'atencao' ? 'bg-amber-50/50' : 'hover:bg-slate-50/70'}">
+        <td class="px-5 py-3"><p class="font-medium text-slate-900">${esc(i.nome || '')}</p><p class="text-xs text-slate-500 num">#${esc(i.pedido || '')} · ${esc(i.telefone || 'sem telefone')}</p></td>
+        <td class="max-w-xs px-3 py-3 text-xs text-slate-600">${esc(i.endereco || '')}${i.complemento ? ` · ${esc(i.complemento)}` : ''}</td>
+        <td class="px-3 py-3"><span class="text-xs font-medium ${cor}">${rot}</span>${i.enviado_em ? `<span class="block text-xs text-slate-400">${dataCurta(i.enviado_em)}</span>` : ''}${i.ultimo_erro && i.status !== 'enviado' ? `<span class="block max-w-[12rem] truncate text-xs text-red-500" title="${esc(i.ultimo_erro)}">${esc(i.ultimo_erro)}</span>` : ''}</td>
+        <td class="max-w-xs px-3 py-3">${resposta}${i.resposta_texto ? `<p class="mt-1 whitespace-pre-wrap text-xs text-slate-700">“${esc(i.resposta_texto)}”</p>` : ''}</td>
+        <td class="px-5 py-3 text-right">
+          <div class="flex justify-end gap-1">
+            ${i.whatsapp ? `<a href="https://wa.me/${esc(i.whatsapp)}" target="_blank" rel="noopener" class="rounded-lg bg-zap-500 px-2.5 py-1.5 text-xs font-semibold text-white hover:bg-zap-600">WhatsApp</a>` : ''}
+            ${i.status === 'falha' ? `<button type="button" data-reenviar="${i.id}" class="rounded-lg border border-slate-300 px-2.5 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50">Reenviar</button>` : ''}
+          </div>
+        </td>
+      </tr>`;
+  }).join('') || '<tr><td colspan="5" class="px-5 py-8 text-center text-sm text-slate-500">Nada neste filtro.</td></tr>';
+}
+
+function exportarLoteCsv() {
+  const cab = ['Nome', 'Telefone', 'Pedido', 'Endereço', 'Complemento', 'CEP', 'Produto', 'Envio', 'Enviado em', 'Resposta', 'Texto da resposta'];
+  const linhas = loteItens.map(i => [i.nome, i.telefone, i.pedido, i.endereco, i.complemento, i.cep, i.produto,
+    (FLEX_STATUS[i.status] || [i.status])[0], i.enviado_em ? dataCurta(i.enviado_em) : '',
+    i.resposta_status === 'confirmou' ? 'Confirmou' : i.resposta_status === 'atencao' ? 'Atenção' : '', i.resposta_texto || '']);
+  const csv = [cab, ...linhas].map(r => r.map(v => `"${String(v ?? '').replace(/"/g, '""')}"`).join(';')).join('\r\n');
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8' }));
+  a.download = `flex-confirmacoes-${dataLocal(new Date())}.csv`;
+  a.click();
+  URL.revokeObjectURL(a.href);
+}
+
 async function carregarAjustes() {
   ajustes = await api('/ajustes');
   for (const el of $('formMensagens').elements) {
@@ -1711,6 +2121,39 @@ $('tbodyLigacoes').addEventListener('click', e => {
   if (b) registrarLigacao(Number(b.dataset.id), b.dataset.lig);
 });
 $('chkLigTodas').addEventListener('change', () => carregarLigacoes().catch(err => toast(err.message, 'erro')));
+
+// Flex
+$('flexArquivo').addEventListener('change', e => {
+  const f = e.target.files[0];
+  if (f) lerPlanilha(f).catch(err => toast(err.message, 'erro'));
+});
+['dragover', 'dragenter'].forEach(ev => $('flexDrop').addEventListener(ev, e => { e.preventDefault(); $('flexDrop').classList.add('border-vesco-500', 'bg-vesco-50'); }));
+['dragleave', 'drop'].forEach(ev => $('flexDrop').addEventListener(ev, () => $('flexDrop').classList.remove('border-vesco-500', 'bg-vesco-50')));
+$('flexDrop').addEventListener('drop', e => {
+  e.preventDefault();
+  const f = e.dataTransfer.files[0];
+  if (f) lerPlanilha(f).catch(err => toast(err.message, 'erro'));
+});
+$('flexAba').addEventListener('change', selecionarAbaFlex);
+$('flexMensagem').addEventListener('input', atualizarBolhaFlex);
+$('flexCancelar').addEventListener('click', limparPreviaFlex);
+$('flexSalvar').addEventListener('click', () => criarLoteFlex(false));
+$('flexEnviar').addEventListener('click', () => criarLoteFlex(true));
+$('tbodyLotes').addEventListener('click', e => {
+  const b = e.target.closest('button[data-lote]');
+  if (b) acaoLote(b.dataset.lote, Number(b.dataset.id));
+});
+$('loteFiltros').addEventListener('click', e => {
+  const b = e.target.closest('button[data-filtro]');
+  if (b) { loteFiltro = b.dataset.filtro; renderLoteItens(); }
+});
+$('tbodyLoteItens').addEventListener('click', async e => {
+  const b = e.target.closest('button[data-reenviar]');
+  if (!b) return;
+  try { await api(`/flex/itens/${b.dataset.reenviar}/reenviar`, { method: 'POST' }); toast('Pedido de volta na fila.', 'ok'); await carregarFlex(); }
+  catch (err) { toast(err.message, 'erro'); }
+});
+$('loteCsv').addEventListener('click', exportarLoteCsv);
 
 // Mensagens
 const teste = lerJson(CHAVE_TESTE, {});
