@@ -119,6 +119,7 @@
           </div>
         </div>
         <p id="txtFila" class="mt-3 text-xs text-slate-600"></p>
+        <div id="avisoProtecao" class="mt-3 hidden rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800"></div>
         <div id="avisoAguardando" class="mt-3 hidden rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900"></div>
         <div id="avisos" class="mt-3 flex flex-wrap gap-2 empty:hidden"></div>
       </section>
@@ -393,7 +394,16 @@
             <div class="grid gap-6 md:grid-cols-2">
               <div class="space-y-4">
                 <h3 class="text-sm font-semibold text-zap-600">WhatsApp</h3>
-                <label class="block"><span class="text-sm font-medium text-slate-700">Mensagem</span>
+                <label class="block"><span class="text-sm font-medium text-slate-700">Como enviar</span>
+                  <select name="whatsapp_modo" class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm">
+                    <option value="direto">Direto: manda a mensagem completa de cara</option>
+                    <option value="duas_etapas">Duas etapas: 1ª curta sem link, a completa só quando responder</option>
+                  </select></label>
+                <label class="block"><span class="text-sm font-medium text-slate-700">1ª mensagem (abertura, só no modo duas etapas)</span>
+                  <textarea name="msg_whatsapp_abertura" rows="5" class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-vesco-500 focus:outline-none"></textarea>
+                  <span class="mt-1 block text-xs text-slate-500"><code>{saudacao}</code> vira Bom dia/Boa tarde. <code>{Oi|Olá}</code> sorteia uma opção a cada envio, para as mensagens não saírem iguais.</span></label>
+                <label class="flex items-center gap-2 text-sm"><input name="whatsapp_completa_ao_responder" type="checkbox" class="h-4 w-4 rounded border-slate-300" /> Quando responderem, mandar a mensagem completa automaticamente</label>
+                <label class="block"><span class="text-sm font-medium text-slate-700">Mensagem completa (links, tabela)</span>
                   <textarea name="msg_whatsapp" rows="10" class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-vesco-500 focus:outline-none"></textarea></label>
                 <label class="block"><span class="text-sm font-medium text-slate-700">Rodapé (descadastro)</span>
                   <input name="msg_whatsapp_rodape" class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-vesco-500 focus:outline-none" /></label>
@@ -413,6 +423,16 @@
               <button type="submit" class="rounded-lg bg-vesco-500 px-5 py-2 text-sm font-medium text-white hover:bg-vesco-600">Salvar mensagem padrão</button>
             </div>
           </form>
+        </section>
+
+        <section class="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+          <h2 class="font-semibold">Proteção do número de WhatsApp</h2>
+          <p class="mb-4 text-sm text-slate-500">O motor começa devagar e aumenta o limite aos poucos (aquecimento), espalha os envios pelo dia e pausa sozinho se muita gente pedir para sair ou se der erro.</p>
+          <div id="protecaoInfo" class="mb-4 grid gap-3 text-sm sm:grid-cols-3"></div>
+          <div class="flex flex-wrap gap-2">
+            <button id="btnReiniciarAquec" type="button" class="rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100">Recomeçar aquecimento a partir de hoje</button>
+            <span class="self-center text-xs text-slate-500">Use depois de uma suspensão ou ao trocar o chip.</span>
+          </div>
         </section>
 
         <section class="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
@@ -587,6 +607,7 @@ async function carregarAba() {
   if (abaAtual === 'prospectar') await carregarCampanhas();
   if (abaAtual === 'funil') { if (!campanhas.length) await carregarCampanhas(); await carregarLeads(); }
   if (abaAtual === 'ligacoes') await carregarLigacoes();
+  if (abaAtual === 'mensagens') renderProtecao();
 }
 
 /* ---------------------------------------------------------------------
@@ -618,6 +639,21 @@ async function carregarResumo() {
     if (r.hoje.whatsapp >= r.limites.whatsapp) partes.push('limite diário de WhatsApp atingido, volta amanhã');
   }
   $('txtFila').innerHTML = partes.join(' · ');
+
+  // Proteção do WhatsApp
+  const pr = r.protecao || {};
+  const aq = pr.aquecimento;
+  if (aq) $('txtFila').innerHTML += ` · Aquecimento: dia ${aq.dia}, limite de hoje <b class="num">${aq.limite}</b>${aq.limite < aq.teto ? ` (sobe até ${aq.teto})` : ''}`;
+  const avisoP = $('avisoProtecao');
+  if (pr.pausa) {
+    avisoP.innerHTML = `<b>WhatsApp em pausa de proteção até ${new Date(pr.pausa.ate).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}.</b> ${esc(pr.pausa.motivo)}
+      <button type="button" id="btnRetomar" class="ml-2 rounded-md border border-red-300 bg-white px-2 py-0.5 text-xs font-semibold text-red-700 hover:bg-red-100">Retomar agora</button>`;
+  } else if (r.configurado.whatsapp && pr.conexao && pr.conexao !== 'open') {
+    avisoP.innerHTML = `<b>WhatsApp desconectado na Evolution</b> (estado: ${esc(pr.conexao)}). Nada sai até reconectar: abra o /manager da Evolution e leia o QR Code de novo.`;
+  } else {
+    avisoP.innerHTML = '';
+  }
+  avisoP.classList.toggle('hidden', !avisoP.innerHTML);
 
   const aguardando = r.totais.aguardando || 0;
   $('avisoAguardando').classList.toggle('hidden', !aguardando);
@@ -683,7 +719,8 @@ function situacaoHtml(canal, x) {
     pausado:      ['Pausado', 'bg-slate-200 text-slate-700', 'O envio automático está desligado (chave no topo).'],
     fora_horario: ['Fora do horário', 'bg-slate-200 text-slate-700', `Retoma às ${retoma} no próximo dia útil.`],
     limite:       ['Limite do dia', 'bg-amber-100 text-amber-800', `Já foram ${x.hoje} hoje. Continua amanhã às ${retoma}.`],
-    desconectado: ['Não conectado', 'bg-red-100 text-red-700', canal === 'whatsapp' ? 'Configure a Evolution API no Easypanel.' : 'Configure o SMTP no Easypanel.'],
+    desconectado: ['Não conectado', 'bg-red-100 text-red-700', canal === 'whatsapp' ? (x.protecao?.conexao && x.protecao.conexao !== 'open' ? 'O WhatsApp caiu na Evolution: leia o QR Code de novo.' : 'Configure a Evolution API no Easypanel.') : 'Configure o SMTP no Easypanel.'],
+    protecao:     ['Pausa de proteção', 'bg-red-100 text-red-700', x.protecao?.pausa?.motivo || 'O motor pausou o WhatsApp para proteger o número.'],
     aguardando:   ['Aguardando você', 'bg-amber-100 text-amber-800', 'Há leads fora da fila: ligue "Envio auto" na campanha ou use Enviar no Funil.']
   };
   const [rotulo, cor, texto] = mapa[x.situacao] || [x.situacao, 'bg-slate-100 text-slate-700', ''];
@@ -1417,6 +1454,18 @@ async function registrarLigacao(id, resultado) {
 /* ---------------------------------------------------------------------
    ABA MENSAGENS
    --------------------------------------------------------------------- */
+function renderProtecao() {
+  const pr = ultimoResumo?.protecao;
+  if (!pr) return;
+  const aq = pr.aquecimento;
+  const card = (titulo, valor, sub) => `<div class="rounded-lg border border-slate-200 p-3"><p class="text-xs uppercase tracking-wide text-slate-500">${titulo}</p><p class="text-lg font-semibold text-slate-900">${valor}</p><p class="text-xs text-slate-500">${sub}</p></div>`;
+  $('protecaoInfo').innerHTML =
+    card('Aquecimento', `Dia ${aq.dia}`, aq.desde ? `recomeçado em ${aq.desde.split('-').reverse().join('/')}` : 'desde o 1º envio') +
+    card('Limite de hoje', `${aq.limite} WhatsApp`, aq.limite < aq.teto ? `sobe até ${aq.teto} (10 → 15 → 20 → 25 → ${aq.teto})` : 'no teto') +
+    card('Situação', pr.pausa ? 'Em pausa' : pr.conexao && pr.conexao !== 'open' ? 'Desconectado' : 'Normal',
+      pr.pausa ? `até ${new Date(pr.pausa.ate).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}` : `conexão: ${pr.conexao || '—'}`);
+}
+
 async function carregarAjustes() {
   ajustes = await api('/ajustes');
   for (const el of $('formMensagens').elements) {
@@ -1525,6 +1574,18 @@ $('formConexao').addEventListener('submit', async e => {
     setConectado(false, err.message);
     toast(`Não conectou: ${err.message}`, 'erro');
   }
+});
+
+document.addEventListener('click', async e => {
+  if (!e.target.closest('#btnRetomar')) return;
+  if (!confirm('Retomar o WhatsApp agora? Se a pausa foi por muitos pedidos de SAIR, revise a mensagem antes.')) return;
+  try { await api('/whatsapp/retomar', { method: 'POST' }); toast('WhatsApp retomado.', 'ok'); await carregarResumo(); carregarAba(); }
+  catch (err) { toast(err.message, 'erro'); }
+});
+$('btnReiniciarAquec').addEventListener('click', async () => {
+  if (!confirm('Recomeçar o aquecimento? O limite volta para 10 por dia a partir de hoje e sobe aos poucos.')) return;
+  try { await api('/whatsapp/aquecimento/reiniciar', { method: 'POST' }); toast('Aquecimento recomeçado: 10 por dia.', 'ok'); await carregarResumo(); renderProtecao(); }
+  catch (err) { toast(err.message, 'erro'); }
 });
 
 $('chaveEnvio').addEventListener('click', async () => {
