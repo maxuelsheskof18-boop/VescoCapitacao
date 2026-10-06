@@ -439,7 +439,7 @@
         <section class="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
           <div class="border-b border-slate-200 px-5 py-4">
             <h2 class="font-semibold">Planilhas enviadas</h2>
-            <p class="text-sm text-slate-500">As confirmações saem uma a cada 40s a 2min, das 7h às 21h, todos os dias, antes da prospecção.</p>
+            <p class="text-sm text-slate-500">As confirmações saem uma a cada 2,5 a 6 min, das 7h às 21h, antes da prospecção, e contam no limite diário de conversas novas do número (o mesmo da prospecção). O que passar do limite sai no dia seguinte.</p>
           </div>
           <div class="overflow-x-auto">
             <table class="tabela w-full text-left text-sm">
@@ -747,10 +747,13 @@ async function carregarResumo() {
   // Proteção do WhatsApp
   const pr = r.protecao || {};
   const aq = pr.aquecimento;
-  if (aq) $('txtFila').innerHTML += ` · Aquecimento: dia ${aq.dia}, limite de hoje <b class="num">${aq.limite}</b>${aq.limite < aq.teto ? ` (sobe até ${aq.teto})` : ''}`;
+  if (aq) $('txtFila').innerHTML += ` · Conversas novas hoje (prospecção + Flex): <b class="num">${pr.conversas_hoje ?? '—'}</b> de <b class="num">${aq.limite}</b> · aquecimento dia ${aq.dia}${aq.limite < aq.teto ? ` (sobe até ${aq.teto})` : ''}`;
   const avisoP = $('avisoProtecao');
   if (pr.pausa) {
     avisoP.innerHTML = `<b>WhatsApp em pausa de proteção até ${new Date(pr.pausa.ate).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}.</b> ${esc(pr.pausa.motivo)}
+      <button type="button" id="btnRetomar" class="ml-2 rounded-md border border-red-300 bg-white px-2 py-0.5 text-xs font-semibold text-red-700 hover:bg-red-100">Retomar agora</button>`;
+  } else if (pr.pausa_prospeccao) {
+    avisoP.innerHTML = `<b>Prospecção pelo WhatsApp parada até ${new Date(pr.pausa_prospeccao.ate).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}.</b> ${esc(pr.pausa_prospeccao.motivo)} As confirmações Flex continuam.
       <button type="button" id="btnRetomar" class="ml-2 rounded-md border border-red-300 bg-white px-2 py-0.5 text-xs font-semibold text-red-700 hover:bg-red-100">Retomar agora</button>`;
   } else if (r.configurado.whatsapp && pr.conexao && pr.conexao !== 'open') {
     avisoP.innerHTML = `<b>WhatsApp desconectado na Evolution</b> (estado: ${esc(pr.conexao)}). Nada sai até reconectar: abra o /manager da Evolution e leia o QR Code de novo.`;
@@ -824,7 +827,7 @@ function situacaoHtml(canal, x) {
     fora_horario: ['Fora do horário', 'bg-slate-200 text-slate-700', `Retoma às ${retoma} no próximo dia útil.`],
     limite:       ['Limite do dia', 'bg-amber-100 text-amber-800', `Já foram ${x.hoje} hoje. Continua amanhã às ${retoma}.`],
     desconectado: ['Não conectado', 'bg-red-100 text-red-700', canal === 'whatsapp' ? (x.protecao?.conexao && x.protecao.conexao !== 'open' ? 'O WhatsApp caiu na Evolution: leia o QR Code de novo.' : 'Configure a Evolution API no Easypanel.') : 'Configure o SMTP no Easypanel.'],
-    protecao:     ['Pausa de proteção', 'bg-red-100 text-red-700', x.protecao?.pausa?.motivo || 'O motor pausou o WhatsApp para proteger o número.'],
+    protecao:     ['Pausa de proteção', 'bg-red-100 text-red-700', x.protecao?.pausa?.motivo || x.protecao?.pausa_prospeccao?.motivo || 'O motor pausou o WhatsApp para proteger o número.'],
     aguardando:   ['Aguardando você', 'bg-amber-100 text-amber-800', 'Há leads fora da fila: ligue "Envio auto" na campanha ou use Enviar no Funil.']
   };
   const [rotulo, cor, texto] = mapa[x.situacao] || [x.situacao, 'bg-slate-100 text-slate-700', ''];
